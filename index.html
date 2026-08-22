@@ -350,6 +350,7 @@
   body.screen-import{background-image:linear-gradient(rgba(11,18,13,.48),rgba(11,18,13,.68)),url("https://i.postimg.cc/Z5mmzLGX/elfo-magazzino.webp") !important;}
 
 
+  /* v72 - Da accreditare: senza N. globale + perdite Parametri Sociali */
   /* v69 - Da accreditare: riepilogo ultimo Post + evidenza valori */
   /* v68 - Evento: PP / Galeoni / Altro + fix numero globale */
   /* v67 - palette pulsanti per sezione */
@@ -2293,6 +2294,28 @@
       eventEligible:eligible
     };
   }
+  function monthlySocialDecay(postCount){
+    var n=Math.max(0,parseInt(postCount,10)||0);
+    return n<=3?-1:(n<=9?-.5:0);
+  }
+  function currentSocialLossParts(postCount){
+    var decay=monthlySocialDecay(postCount),parts=[];
+    if(decay>=0){return parts;}
+    var defs=socialFieldDefs(),values=normalizeSocialValues(PARAMETRI_SOCIALI);
+    for(var i=0;i<defs.length;i++){
+      var d=defs[i],before=socialNumber(values[d.key]);
+      if(before===null){continue;}
+      var after=before+decay;
+      if(Number.isFinite(d.min)){after=Math.max(d.min,after);}
+      if(Number.isFinite(d.max)){after=Math.min(d.max,after);}
+      after=Math.round(after*100)/100;
+      var delta=Math.round((after-before)*100)/100;
+      if(delta<0){
+        parts.push(d.label+" −"+fmtSocialValue(Math.abs(delta)));
+      }
+    }
+    return parts;
+  }
   function makeEventBonusExclusionCell(post,mese,locked){
     var td=el("td"),line=el("label","chk-line"),cb=el("input"); cb.type="checkbox"; cb.checked=!!(post&&post.eventoBonusEscluso); cb.disabled=!!locked || !post || !isValidPostLink(post.link);
     cb.addEventListener("change",function(){ if(blockIfMonthReadOnly(mese)){cb.checked=!!post.eventoBonusEscluso;return;} post.eventoBonusEscluso=!!cb.checked; scheduleSave(0); renderAll(); });
@@ -2406,8 +2429,9 @@
     if(latestCredit && !isImportedStudentMonth(meseObj) && !monthIsAccredited(meseObj)){
       var creditParts=["+"+latestCredit.galeoni+" G","+"+latestCredit.pp+" PP"];
       if(latestCredit.altro){creditParts.push("Altro: "+latestCredit.altro);}
+      var socialLosses=currentSocialLossParts(totFilled);
+      if(socialLosses.length){creditParts.push("Parametri Sociali: "+socialLosses.join(", "));}
       var creditLabel="Post "+latestCredit.localNo;
-      if(latestCredit.globalNo){creditLabel+=" · N. globale "+latestCredit.globalNo;}
       p.appendChild(el("div","cb-credit-alert","<b>DA ACCREDITARE — "+creditLabel+":</b><span class=\"cb-credit-values\">"+creditParts.join(" · ")+"</span>"));
     }
 
