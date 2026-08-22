@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Il Mio Elfo Domestico — Adulto</title>
 <link rel="preconnect" href="https://i.postimg.cc">
-<link rel="preload" as="image" href="https://i.postimg.cc/CxWF5fQw/apotecario-gotico-oltre-l-arco.webp" fetchpriority="high">
+<link rel="preload" as="image" href="https://i.postimg.cc/6pKKxhkk/elfo-biblioteca.webp" fetchpriority="high">
 <style>
   @font-face {font-family: 'magic';
  src: url('https://dl.dropboxusercontent.com/scl/fi/nbzmrri4qyvc3tzx96911/HarryBeastDisplay-Regular.woff2?rlkey=he290voe32k33gowug23c1osc&st=nj9fgly1') format('woff2');
@@ -432,6 +432,11 @@
     background:var(--red);
     color:var(--parch);
     border-color:#a95b50;
+  }
+
+  /* Spazio tra i riquadri Totale e il riepilogo Evento in Camera Blindata */
+  body.screen-cb .totals + .guide-text{
+    margin-top:14px;
   }
 
 </style>
@@ -2448,10 +2453,6 @@
       for(var gx=0; gx<=li; gx++){ if(isValidPostLink(postiDelMese[gx].link)){ linkedUpTo++; } }
       var gCell=el("td","g-value",(cumulativeG(linkedUpTo) + eventBonusGaleoniTotal(meseObj, postiDelMese, li + 1)) + " G");
       var ppCell=el("td","g-value",cumulativePP(postiDelMese, li + 1, meseObj) + " PP");
-      if(isLatestCreditRow){
-        gCell.appendChild(el("span","cb-earned-now","+"+latestCredit.galeoni+" G questo post"));
-        ppCell.appendChild(el("span","cb-earned-now","+"+latestCredit.pp+" PP questo post"));
-      }
       tr.appendChild(gCell);
       tr.appendChild(ppCell);
       tblLive.appendChild(tr);
