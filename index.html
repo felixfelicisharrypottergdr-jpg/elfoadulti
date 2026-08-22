@@ -445,7 +445,7 @@
 <body>
 <div class="wrap">
   <h1 class="main-title">Il Mio Elfo Domestico</h1>
-  <p class="subtitle">Lascia che mi occupi io di tutto, padron Adulto</p>
+  <p class="subtitle">Lascia che mi occupi io di tutto, Padron <b></b>Adulto</b></p>
 
   <div class="steps-nav" id="stepsNav"></div>
   <p id="fb-indicator" style="text-align:center; color:#e6d8ac; font-size:.8rem; margin-bottom:4px;">○ Non connesso</p>
@@ -1898,7 +1898,7 @@
 
       var row = el("div", "row");
       var d1 = el("div"); d1.appendChild(el("label", null, "Nome del Personaggio"));
-      var i1 = el("input"); i1.type="text"; i1.value = PG_ID; i1.placeholder="Come posso aiutarla, Padron...?";
+      var i1 = el("input"); i1.type="text"; i1.value = PG_ID; i1.placeholder="Come posso aiutarla, Padron... oppure Padrona...?";
       i1.addEventListener("input", function(){ PG_ID = i1.value; });
       d1.appendChild(i1); row.appendChild(d1); p.appendChild(row);
 
