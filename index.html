@@ -1937,7 +1937,7 @@
 
       var row = el("div", "row");
       var d1 = el("div"); d1.appendChild(el("label", null, "Nome del Personaggio"));
-      var i1 = el("input"); i1.type="text"; i1.value = PG_ID; i1.placeholder="Come posso aiutarla, Padron...?";
+      var i1 = el("input"); i1.type="text"; i1.value = PG_ID; i1.placeholder="Come può aiutarti quest'umile elfo, Padron... o Padrona?";
       i1.addEventListener("input", function(){ PG_ID = i1.value; });
       d1.appendChild(i1); row.appendChild(d1); p.appendChild(row);
 
@@ -2549,7 +2549,7 @@
 
     card.appendChild(row);
     if(!locked){
-      var rem=el("button","action danger small","Rimuovi Bonus"); rem.type="button";
+      var rem=el("button","action danger small","Rimuovi Bonus"); rem.type="button"; rem.style.marginTop="12px";
       rem.addEventListener(EV,function(){
         if(blockIfMonthReadOnly(mese)){return;}
         if(!confirm("Rimuovere questo Bonus?")){return;}
