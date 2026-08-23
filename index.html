@@ -8,6 +8,12 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 <link rel="preload" as="image" href="https://i.postimg.cc/6pKKxhkk/elfo-biblioteca.webp" fetchpriority="high">
 <style>
+  /* v114 - Camera Blindata: colonna Utilizzi progressivi dopo Totale Bonus;
+     stato AGGIORNARE/TERMINATO anche nel riepilogo; nessun flag duplicato nella colonna Utilizzi */
+
+  /* v113 - Camera Blindata: Link ultimo; numero Post mensile in grassetto;
+     numeri globali alternati rosso/giallino; Bonus con «Nome: +X» */
+
   /* v112 - Pozioni: ogni Fase di creazione è contenuta in una tendina indipendente */
   /* v111 - Laboratorio: uno iniziale, minimo uno e massimo tre; colori Classificazione rinforzati anche per le Piante */
 
@@ -565,6 +571,54 @@
     color:#8c2f2f;
   }
   .cb-total-line{ display:block; white-space:nowrap; }
+  .cb-local-post-number{
+    font-weight:800;
+    text-align:center;
+  }
+  .cb-global-alt-0{
+    background:#8f3b3b !important;
+    color:#fffaf0 !important;
+  }
+  .cb-global-alt-1{
+    background:#d8b95f !important;
+    color:#3a2b1a !important;
+    border-color:#9f7d28 !important;
+  }
+  .cb-post-link-last{
+    min-width:54px;
+    text-align:center;
+  }
+  .cb-usage-cell{
+    min-width:150px;
+    line-height:1.35;
+  }
+  .cb-usage-line{
+    margin:2px 0;
+  }
+  .cb-usage-badge,
+  .cb-summary-usage-badge{
+    display:inline-block;
+    padding:3px 6px;
+    border-radius:5px;
+    font-size:.72rem;
+    font-weight:800;
+    white-space:normal;
+  }
+  .cb-summary-usage-badge{
+    margin-left:5px;
+  }
+  .cb-usage-badge.update,
+  .cb-summary-usage-badge.update{
+    background:#fff0cf;
+    border:1px solid #d88b18;
+    color:#9a5400;
+  }
+  .cb-usage-badge.exhausted,
+  .cb-summary-usage-badge.exhausted{
+    background:#f8dfda;
+    border:1px solid #9b2f2a;
+    color:#8f211d;
+  }
   .cb-total-altro{
     display:block;
     margin-top:2px;
@@ -3453,6 +3507,54 @@
     if(monthUsed>0){return current+"/"+b.maxUtilizzi+" — aggiornare nel Bagaglio in Scheda PG (da "+start+"/"+b.maxUtilizzi+" a "+current+"/"+b.maxUtilizzi+").";}
     return current+"/"+b.maxUtilizzi+" utilizzi.";
   }
+  function hasPostUsageBonuses(mese){
+    var bonuses=activeMonthBonuses(mese);
+    for(var i=0;i<bonuses.length;i++){if(bonuses[i].modalita==="posts"){return true;}}
+    return false;
+  }
+  function bonusUsageProgressAtPost(b,posts,postIndex){
+    if(!b||b.modalita!=="posts"||postIndex<0||postIndex>=posts.length){return null;}
+    if(!postUsesLimitedBonus(posts[postIndex],b)){return null;}
+    var current=Math.max(0,parseInt(b.usatiIniziali,10)||0)+bonusPostsUsedThisMonth(b,posts,postIndex+1);
+    var max=Math.max(0,parseInt(b.maxUtilizzi,10)||0);
+    return {
+      current:current,
+      max:max,
+      kind:(max>0&&current>=max)?"exhausted":"update",
+      label:max>0?(current+"/"+max):(current+" utilizzi")
+    };
+  }
+  function bonusSummaryUsageState(b,posts){
+    if(!b||b.modalita!=="posts"){return null;}
+    var used=bonusUsedThisMonth(b,posts);
+    if(used<=0){return null;}
+    var start=Math.max(0,parseInt(b.usatiIniziali,10)||0);
+    var current=start+used;
+    var max=Math.max(0,parseInt(b.maxUtilizzi,10)||0);
+    if(max>0&&current>=max){
+      return {kind:"exhausted",text:"TERMINATO — "+current+"/"+max+" · rimuovere dal Bagaglio in Scheda PG"};
+    }
+    if(max>0){
+      return {kind:"update",text:"AGGIORNARE — "+start+"/"+max+" → "+current+"/"+max+" nel Bagaglio in Scheda PG"};
+    }
+    return {kind:"update",text:"AGGIORNARE — "+current+" utilizzi registrati"};
+  }
+  function makeBonusUsageProgressCell(post,mese,posts,postIndex){
+    var td=el("td","cb-usage-cell"),bonuses=activeMonthBonuses(mese),shown=0;
+    for(var i=0;i<bonuses.length;i++){
+      var b=bonuses[i];
+      if(b.modalita!=="posts"){continue;}
+      var progress=bonusUsageProgressAtPost(b,posts,postIndex);
+      if(!progress){continue;}
+      shown++;
+      var line=el("div","cb-usage-line");
+      var label=bonusDisplayName(b,i)+": "+progress.label+" — "+(progress.kind==="exhausted"?"TERMINATO":"AGGIORNARE");
+      line.appendChild(el("span","cb-usage-badge "+progress.kind,label));
+      td.appendChild(line);
+    }
+    if(!shown){td.appendChild(el("span","cb-bonus-none","—"));}
+    return td;
+  }
   function bonusBagWarnings(mese,posts){
     var bonuses=activeMonthBonuses(mese),out=[];
     for(var i=0;i<bonuses.length;i++){
@@ -3654,7 +3756,7 @@
 
         var txt=el("span");
         var name=bonusDisplayName(b,idx);
-        txt.appendChild(el("span","cb-bonus-name",name+(b.modalita==="posts"?": ":"")));
+        txt.appendChild(el("span","cb-bonus-name",name+": "));
 
         if(b.modalita==="posts"&&b.valore==="variable"){
           var r=getBonusUsageRecord(post,b,true);
@@ -3855,7 +3957,7 @@
   function renderBlindataStep(container){
     var p = el("div", "panel");
     p.appendChild(el("h2", null, "Camera Blindata (Adulto)"));
-    p.appendChild(el("div", "guide-text", "Un blocco per ogni Mese creato allo Step 1. Qui controlli <b>Link, Galeoni, N. globale e Bonus</b>. I Bonus si impostano nel riquadro qui sotto e compaiono automaticamente nella colonna Bonus dei post a cui si applicano. Scala Galeoni: 65-45-30-20-15-10-6-4-3-2, poi 1 G ciascuno."));
+    p.appendChild(el("div", "guide-text", "Un blocco per ogni Mese creato allo Step 1. Qui controlli <b>Galeoni, N. globale, Bonus, Totale Bonus e Link</b>. I Bonus si impostano nel riquadro qui sotto e compaiono automaticamente nella colonna Bonus dei post a cui si applicano. Scala Galeoni: 65-45-30-20-15-10-6-4-3-2, poi 1 G ciascuno."));
 
     if(MESI.length === 0){
       p.appendChild(el("div", "guide-text", "Non hai ancora creato nessun Mese. Torna allo Step 1."));
@@ -3994,11 +4096,6 @@
 
       p.appendChild(el("div","cb-credit-alert","<b>DA ACCREDITARE — "+creditLabel+": </b><span class=\"cb-credit-values\">"+creditParts.join(" · ")+"</span>"));
     }
-    var bagWarnings=bonusBagWarnings(meseObj,postiDelMese);
-    for(var bwi=0;bwi<bagWarnings.length;bwi++){
-      p.appendChild(el("div",bagWarnings[bwi].kind==="remove"?"bag-remove-warning":"bag-update-warning",bagWarnings[bwi].text));
-    }
-
     var totals = el("div", "totals");
     totals.appendChild(el("div", "box", "Totale Post<br><b>" + totFilled + "</b>"));
     totals.appendChild(el("div", "box", "Totale Galeoni<br><b>" + totG + " G</b>"));
@@ -4034,11 +4131,22 @@
         modeText="Utilizzi manuali: "+bonusCurrentUses(bi,postiDelMese)+(bi.maxUtilizzi>0?"/"+bi.maxUtilizzi:"");
       }
       if(!parts.length)parts.push("nessun valore economico");
-      p.appendChild(el("div","guide-text","<b>"+bonusDisplayName(bi,bsi)+":</b> "+parts.join(" · ")+" · <b>"+modeText+"</b>"));
+      var summaryLine=el("div","guide-text");
+      summaryLine.appendChild(el("b",null,bonusDisplayName(bi,bsi)+": "));
+      summaryLine.appendChild(document.createTextNode(parts.join(" · ")+" · "));
+      summaryLine.appendChild(el("b",null,modeText));
+      var usageState=bonusSummaryUsageState(bi,postiDelMese);
+      if(usageState){
+        summaryLine.appendChild(document.createTextNode(" · "));
+        summaryLine.appendChild(el("span","cb-summary-usage-badge "+usageState.kind,usageState.text));
+      }
+      p.appendChild(summaryLine);
     }
 
+    var showUsageColumn=hasPostUsageBonuses(meseObj);
     var tblLive = el("table", "posts");
-    tblLive.appendChild(el("tr", null, "<th>N.</th><th>Link</th><th>Galeoni accumulati</th><th>N. globale</th><th>Bonus</th><th>Totale Bonus</th>"));
+    var cbHeader="<th>N.</th><th>Galeoni accumulati</th><th>N. globale</th><th>Bonus</th><th>Totale Bonus</th>"+(showUsageColumn?"<th>Utilizzi</th>":"")+"<th>Link</th>";
+    tblLive.appendChild(el("tr", null, cbHeader));
 
     var showUpToLive = postiDelMese.length;
     if(showUpToLive < 1){ showUpToLive = 0; }
@@ -4053,8 +4161,8 @@
       var isLatestCreditRow = !!(latestCredit && li===latestCredit.index);
       if(isLatestCreditRow){tr.classList.add("cb-latest-row");}
 
-      tr.appendChild(el("td",null,String(localPostNo)));
-      tr.appendChild(makeLinkCell(lp.link, "Apri il post"));
+      /* Numero del Post nel Mese: distinto dal numero globale e sempre in grassetto. */
+      tr.appendChild(el("td","cb-local-post-number",String(localPostNo)));
 
       var linkedUpTo = 0;
       for(var gx=0; gx<=li; gx++){
@@ -4062,11 +4170,11 @@
       }
       tr.appendChild(el("td","g-value",(cumulativeG(linkedUpTo) + eventBonusGaleoniTotal(meseObj, postiDelMese, li + 1)) + " G"));
 
-      var globalTd=el("td");
+      /* Numero globale: alternanza stabile rosso / giallino basata sul numero stesso. */
+      var globalTd=el("td","global-number-cell");
       var globalNo=parseInt(lp.globalNo,10);
-      var monthTone=Math.max(0,MESI.indexOf(meseObj)) % 3;
       if(!isNaN(globalNo) && globalNo>0){
-        globalTd.appendChild(el("span","global-post-number global-month-tone-"+monthTone,String(globalNo)));
+        globalTd.appendChild(el("span","global-post-number cb-global-alt-"+(globalNo%2),String(globalNo)));
       }else{
         globalTd.appendChild(el("span","cb-bonus-none","—"));
       }
@@ -4081,11 +4189,22 @@
       appendMoneyParts(bonusTotalTd,bonusTotals,bonusTotals.altro);
       tr.appendChild(bonusTotalTd);
 
+      /* Nessun flag duplicato qui: la colonna mostra soltanto la progressione
+         degli utilizzi già selezionati nella colonna Bonus. */
+      if(showUsageColumn){
+        tr.appendChild(makeBonusUsageProgressCell(lp,meseObj,postiDelMese,li));
+      }
+
+      /* Il link del Post è volutamente l'ultima colonna. */
+      var linkTd=makeLinkCell(lp.link, "Apri il post");
+      linkTd.classList.add("cb-post-link-last");
+      tr.appendChild(linkTd);
+
       tblLive.appendChild(tr);
     }
 
     if(showUpToLive === 0 || totFilled===0){
-      p.appendChild(el("p", "small-note", "Nessun post ancora in questo Mese: aggiungine allo Step precedente per vedere qui Galeoni, N. globale, Bonus e totali."));
+      p.appendChild(el("p", "small-note", "Nessun post ancora in questo Mese: aggiungine allo Step precedente per vedere qui Galeoni, N. globale, Bonus, Totale Bonus, Utilizzi (quando presenti) e Link."));
     } else {
       p.appendChild(el("h4", null, "Progressivo del mese"));
       p.appendChild(tblLive);
