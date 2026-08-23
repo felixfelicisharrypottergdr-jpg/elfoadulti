@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Il Mio Elfo Domestico — Adulto</title>
 <link rel="preconnect" href="https://i.postimg.cc">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 <link rel="preload" as="image" href="https://i.postimg.cc/6pKKxhkk/elfo-biblioteca.webp" fetchpriority="high">
 <style>
   @font-face {font-family: 'magic';
@@ -283,6 +284,29 @@
     background:#f6d7d4;
     border:1px solid #b95a52;
     box-shadow:0 0 6px rgba(185,90,82,.18);
+  }
+  .structure-ui .cycle-status.queued{
+    color:#665a43;
+    background:#f2ead7;
+    border:1px solid #b7a47b;
+    box-shadow:0 0 5px rgba(128,96,42,.10);
+  }
+  .structure-ui .cycle-wait-note{
+    display:block;
+    margin:7px 0 2px;
+    color:#6d6048;
+    font-size:.76rem;
+    font-style:italic;
+  }
+  .structure-ui .repro-icon{
+    display:inline-block;
+    margin-right:6px;
+    color:#668a42;
+    text-shadow:0 0 5px rgba(102,138,66,.24);
+  }
+  .structure-ui .creature-card .repro-icon{
+    color:#b56a27;
+    text-shadow:0 0 5px rgba(181,106,39,.24);
   }
   .structure-ui details.cycle-item + details.cycle-item{ margin-top:11px; }
   .structure-ui .cycle-sections{ margin-top:10px; }
@@ -838,6 +862,8 @@
 
   /* v72 - Da accreditare: senza N. globale + perdite Parametri Sociali */
   /* v69 - Da accreditare: riepilogo ultimo Post + evidenza valori */
+  /* Cicli sequenziali: TERMINATO / IN CORSO / A TURNO; Produzione e Riproduzione possono sovrapporsi */
+  /* Icone Riproduzione: foglia per Piante, uovo per Creature; capienza mostrata come occupati/totali */
   /* Cicli: badge IN CORSO / TERMINATO accanto a ogni Ciclo di Produzione, Riproduzione e Gestazione */
   /* Serra / Riserva / Laboratorio: blocchi, colori entità, tendine Agenda/Cicli/Archivio e griglie allineate */
   /* Camera Blindata: Bonus «Tutti i post» senza checkbox; si applica automaticamente a ogni post valido */
@@ -4890,10 +4916,12 @@
     var dLink = el("div"); dLink.appendChild(el("label", null, "Link esito dado"));
     var iLink = el("input"); iLink.type="text"; iLink.value = sub.esitoLink;
     iLink.addEventListener("input", function(){ sub.esitoLink = iLink.value; });
+    iLink.addEventListener("change", function(){ sub.esitoLink = iLink.value; renderAll(); });
     dLink.appendChild(iLink); row.appendChild(dLink);
     var dEsito = el("div"); dEsito.appendChild(el("label", null, "Esito (es. 100%)"));
     var iEsito = el("input"); iEsito.type="text"; iEsito.value = sub.esitoText;
     iEsito.addEventListener("input", function(){ sub.esitoText = iEsito.value; });
+    iEsito.addEventListener("change", function(){ sub.esitoText = iEsito.value; renderAll(); });
     dEsito.appendChild(iEsito); row.appendChild(dEsito);
     var dPost = el("div"); dPost.appendChild(el("label", null, "Post necessari"));
     var iPost = el("input"); iPost.type="number"; iPost.min="0"; iPost.value = sub.postRichiesti;
@@ -4916,6 +4944,7 @@
       var dOtt = el("div"); dOtt.appendChild(el("label", null, ottenutiLabel));
       var iOtt = el("input"); iOtt.type="text"; iOtt.value = sub.ottenuti;
       iOtt.addEventListener("input", function(){ sub.ottenuti = iOtt.value; });
+      iOtt.addEventListener("change", function(){ sub.ottenuti = iOtt.value; renderAll(); });
       dOtt.appendChild(iOtt); wrap.appendChild(iOtt.parentNode ? dOtt : dOtt);
       if(/Ingredienti/i.test(ottenutiLabel) && STRUTTURE.dispensa){
         if(sub.dispensaTransfer && sub.dispensaTransfer.done){
@@ -5112,36 +5141,144 @@
   }
 
 
-  function buildCycleItemDetails(occupant, stage, config, sub, title, ottenutiLabel, keySuffix, showIra){
+  function subEntryStarted(sub){
+    if(!sub){return false;}
+    return !!(
+      String(sub.esitoLink||"").trim() ||
+      String(sub.esitoText||"").trim() ||
+      Math.max(0,num(sub.postRichiesti,0))>0 ||
+      String(sub.ottenuti||"").trim() ||
+      String(sub.iraResult||"").trim()
+    );
+  }
+
+  function cycleStatusInfo(sub, canStart){
+    if(subEntryFilled(sub)){return {key:"done",label:"TERMINATO"};}
+    if(canStart && subEntryStarted(sub)){return {key:"in-progress",label:"IN CORSO"};}
+    return {key:"queued",label:"A TURNO"};
+  }
+
+  function makeReproductionIcon(config){
+    var i=document.createElement("i");
+    i.className="fa-solid "+(config.tipoLabel==="Pianta"?"fa-leaf":"fa-egg")+" repro-icon";
+    i.setAttribute("aria-hidden","true");
+    return i;
+  }
+
+  function lockCycleUi(node){
+    if(!node||!node.querySelectorAll){return;}
+    var controls=node.querySelectorAll("input, select, button, textarea");
+    for(var i=0;i<controls.length;i++){controls[i].disabled=true;}
+  }
+
+  function buildCycleItemDetails(occupant, stage, config, sub, title, ottenutiLabel, keySuffix, showIra, options){
+    options=options||{};
+    var canStart=options.canStart!==false;
+    var isReproduction=!!options.isReproduction;
+
     var det=el("details","cycle-item");
     keepDetailsState(det,"ciclo:item:"+config.tipoLabel+":"+occupant.id+":"+stage.key+":"+keySuffix,false);
 
-    var done=subEntryFilled(sub);
+    var status=cycleStatusInfo(sub,canStart);
     var summary=el("summary");
     var summaryLine=el("span","cycle-summary-line");
-    summaryLine.appendChild(el("span",null,title));
-    summaryLine.appendChild(el("span","cycle-status "+(done?"done":"in-progress"),done?"TERMINATO":"IN CORSO"));
+    var titleSpan=el("span");
+    if(isReproduction){titleSpan.appendChild(makeReproductionIcon(config));}
+    titleSpan.appendChild(document.createTextNode(title));
+    summaryLine.appendChild(titleSpan);
+    summaryLine.appendChild(el("span","cycle-status "+status.key,status.label));
     summary.appendChild(summaryLine);
     det.appendChild(summary);
 
-    det.appendChild(buildSubEntryUI(sub,"<b>"+title+"</b>",ottenutiLabel));
-    if(showIra){det.appendChild(buildIraCheck(sub,occupant));}
+    var subUi=buildSubEntryUI(sub,"<b>"+title+"</b>",ottenutiLabel);
+    if(!canStart && !subEntryFilled(sub)){
+      lockCycleUi(subUi);
+      subUi.appendChild(el("span","cycle-wait-note","Completa prima il Ciclo precedente: questo è ancora a turno."));
+    }
+    det.appendChild(subUi);
+
+    if(showIra){
+      var iraUi=buildIraCheck(sub,occupant);
+      if(!canStart && !subEntryFilled(sub)){lockCycleUi(iraUi);}
+      det.appendChild(iraUi);
+    }
     return det;
   }
 
   function buildStageDetails(occupant, stage, config, defaultOpen){
-    var wrap=el("div","cycle-sections"); wrap.appendChild(el("p","small-note cycle-context","Fase attuale: <b>"+stage.label+"</b>. Le altre fasi restano salvate e ricompariranno automaticamente quando torneranno attive."));
-    var cicliData=occupant.cicli[stage.key]; var isCreatura=config.tipoLabel==="Creatura"; var altaClasse=occupant.classificazione==="XXXX"||occupant.classificazione==="XXXXX"; var mostraIra=isCreatura&&altaClasse;
+    var wrap=el("div","cycle-sections");
+    wrap.appendChild(el("p","small-note cycle-context","Fase attuale: <b>"+stage.label+"</b>. I Cicli di Produzione si svolgono uno per volta; Produzione e Riproduzione possono invece procedere contemporaneamente."));
+
+    var cicliData=occupant.cicli[stage.key];
+    var isCreatura=config.tipoLabel==="Creatura";
+    var altaClasse=occupant.classificazione==="XXXX"||occupant.classificazione==="XXXXX";
+    var mostraIra=isCreatura&&altaClasse;
+
     if(stage.type==="cicli"||stage.type==="ripro"){
-      var prod=el("details","cycle-group"); keepDetailsState(prod,"ciclo:produzione:"+config.tipoLabel+":"+occupant.id+":"+stage.key,false); prod.appendChild(el("summary",null,"Produzione"));
-      if(!cicliData.list.length){prod.appendChild(el("p","small-note","Nessun Ciclo di Produzione previsto per questa fase."));}
-      for(var i=0;i<cicliData.list.length;i++){prod.appendChild(buildCycleItemDetails(occupant,stage,config,cicliData.list[i],"Ciclo di Produzione "+(i+1),"Ingredienti ottenuti","prod-"+i,mostraIra));} wrap.appendChild(prod);
+      var prod=el("details","cycle-group");
+      keepDetailsState(prod,"ciclo:produzione:"+config.tipoLabel+":"+occupant.id+":"+stage.key,false);
+      prod.appendChild(el("summary",null,"Produzione"));
+
+      if(!cicliData.list.length){
+        prod.appendChild(el("p","small-note","Nessun Ciclo di Produzione previsto per questa fase."));
+      }
+
+      var previousCompleted=true;
+      for(var i=0;i<cicliData.list.length;i++){
+        var currentSub=cicliData.list[i];
+        prod.appendChild(buildCycleItemDetails(
+          occupant,stage,config,currentSub,
+          "Ciclo di Produzione "+(i+1),
+          "Ingredienti ottenuti",
+          "prod-"+i,
+          mostraIra,
+          {canStart:previousCompleted,isReproduction:false}
+        ));
+        if(!subEntryFilled(currentSub)){previousCompleted=false;}
+      }
+      wrap.appendChild(prod);
     }
+
     if(stage.type==="ripro"){
-      var rip=el("details","cycle-group"); keepDetailsState(rip,"ciclo:riproduzione:"+config.tipoLabel+":"+occupant.id+":"+stage.key,false); rip.appendChild(el("summary",null,"Riproduzione")); rip.appendChild(buildCycleItemDetails(occupant,stage,config,cicliData.evento,"Ciclo di Riproduzione 1",stage.ottenuti,"ripro",false)); wrap.appendChild(rip);
+      var rip=el("details","cycle-group");
+      keepDetailsState(rip,"ciclo:riproduzione:"+config.tipoLabel+":"+occupant.id+":"+stage.key,false);
+
+      var ripSummary=el("summary");
+      ripSummary.appendChild(makeReproductionIcon(config));
+      ripSummary.appendChild(document.createTextNode("Riproduzione"));
+      rip.appendChild(ripSummary);
+
+      /* La Riproduzione è indipendente dal turno dei Cicli di Produzione:
+         può essere svolta nello stesso periodo del Ciclo di Produzione attivo. */
+      rip.appendChild(buildCycleItemDetails(
+        occupant,stage,config,cicliData.evento,
+        "Ciclo di Riproduzione 1",
+        stage.ottenuti,
+        "ripro",
+        false,
+        {canStart:true,isReproduction:true}
+      ));
+      wrap.appendChild(rip);
     }
+
     if(stage.type==="gestazione"){
-      var gest=el("details","cycle-group"); keepDetailsState(gest,"ciclo:riproduzione:"+config.tipoLabel+":"+occupant.id+":"+stage.key,false); gest.appendChild(el("summary",null,"Riproduzione / Gestazione")); gest.appendChild(buildCycleItemDetails(occupant,stage,config,cicliData.evento,"Gestazione",null,"gestazione",false)); wrap.appendChild(gest);
+      var gest=el("details","cycle-group");
+      keepDetailsState(gest,"ciclo:riproduzione:"+config.tipoLabel+":"+occupant.id+":"+stage.key,false);
+
+      var gestSummary=el("summary");
+      gestSummary.appendChild(makeReproductionIcon(config));
+      gestSummary.appendChild(document.createTextNode("Riproduzione / Gestazione"));
+      gest.appendChild(gestSummary);
+
+      gest.appendChild(buildCycleItemDetails(
+        occupant,stage,config,cicliData.evento,
+        "Gestazione",
+        null,
+        "gestazione",
+        false,
+        {canStart:true,isReproduction:true}
+      ));
+      wrap.appendChild(gest);
     }
     return wrap;
   }
@@ -5289,7 +5426,13 @@
 
   function buildFacilityCard(fac, isServa, stages, config, titolo, listaLabel, listFacRef){
     var LIST=isServa?fac.PIANTE:fac.CREATURE; var ARCHIVIO=isServa?fac.ARCHIVIO_PIANTE:fac.ARCHIVIO_CREATURE;
-    var det=el("details","stage structure-shell"); keepDetailsState(det,(isServa?"serra:":"riserva:")+fac.id,false); var summaryLabel=fac.nome!==""?fac.nome:"("+titolo+" senza nome)"; det.appendChild(el("summary",null,summaryLabel+" — "+LIST.length+" "+config.pluraleLabel));
+    var det=el("details","stage structure-shell");
+    keepDetailsState(det,(isServa?"serra:":"riserva:")+fac.id,false);
+    var summaryLabel=fac.nome!==""?fac.nome:"("+titolo+" senza nome)";
+    var capMatch=String(fac.posti||"").match(/\d+/);
+    var capienza=capMatch?Math.max(0,parseInt(capMatch[0],10)||0):0;
+    var occupazione=LIST.length+"/"+(capienza>0?capienza:"?");
+    det.appendChild(el("summary",null,summaryLabel+" — "+occupazione+" "+config.pluraleLabel));
 
     var general=el("div","structure-general-block"); var generalHead=el("div","structure-block-head"); generalHead.appendChild(el("span",null,"Dati generali della "+titolo));
     var rmBtn=el("button","action danger small","Rimuovi questa "+titolo); rmBtn.disabled=containsLockedArchive(ARCHIVIO); rmBtn.addEventListener(EV,function(){if(containsLockedArchive(ARCHIVIO)){alert("Questa "+titolo+" contiene almeno un elemento in Archivio consolidato. Il Narratore deve prima usare «Sblocca archivi 24h».");renderAll();return;}if(confirm("Rimuovere definitivamente questa "+titolo+" e tutto il suo contenuto?")){var idx=listFacRef.indexOf(fac);if(idx>-1){listFacRef.splice(idx,1);}scheduleSave(0);renderAll();}}); generalHead.appendChild(rmBtn); general.appendChild(generalHead);
@@ -5297,7 +5440,7 @@
 
     var row1=el("div","row"); var dNome=el("div"); dNome.appendChild(el("label",null,"Nome di questa "+titolo)); var iNome=el("input"); iNome.type="text"; iNome.value=fac.nome; iNome.placeholder="Es. "+titolo+" n°1"; iNome.addEventListener("change",function(){fac.nome=iNome.value;renderAll();}); dNome.appendChild(iNome); row1.appendChild(dNome); var d2=el("div"); d2.appendChild(el("label",null,"Registrata al Ministero")); d2.appendChild(buildSelect(["sì","no"],fac.registrato==="no"?"no":"sì",function(v){fac.registrato=(v==="no")?"no":"si";})); row1.appendChild(d2); general.appendChild(row1);
     var row2=el("div","row"); var d3=el("div"); d3.appendChild(el("label",null,"Collaboratori (facoltativo)")); var i3=el("input"); i3.type="text"; i3.value=fac.collaboratori; i3.addEventListener("input",function(){fac.collaboratori=i3.value;}); d3.appendChild(i3); row2.appendChild(d3); var d4=el("div"); d4.appendChild(el("label",null,"Posizione")); var i4=el("input"); i4.type="text"; i4.value=fac.posizione; i4.addEventListener("input",function(){fac.posizione=i4.value;}); d4.appendChild(i4); row2.appendChild(d4); general.appendChild(row2);
-    var row3=el("div","row"); var d5=el("div"); d5.appendChild(el("label",null,"Protezioni utilizzate")); var i5=el("input"); i5.type="text"; i5.value=fac.protezioni; i5.addEventListener("input",function(){fac.protezioni=i5.value;}); d5.appendChild(i5); row3.appendChild(d5); var d6=el("div"); d6.appendChild(el("label",null,"Numero di posti disponibili")); var i6=el("input"); i6.type="text"; i6.value=fac.posti; i6.addEventListener("input",function(){fac.posti=i6.value;}); d6.appendChild(i6); row3.appendChild(d6); general.appendChild(row3);
+    var row3=el("div","row"); var d5=el("div"); d5.appendChild(el("label",null,"Protezioni utilizzate")); var i5=el("input"); i5.type="text"; i5.value=fac.protezioni; i5.addEventListener("input",function(){fac.protezioni=i5.value;}); d5.appendChild(i5); row3.appendChild(d5); var d6=el("div"); d6.appendChild(el("label",null,"Numero di posti disponibili")); var i6=el("input"); i6.type="text"; i6.value=fac.posti; i6.addEventListener("input",function(){fac.posti=i6.value;}); i6.addEventListener("change",function(){fac.posti=i6.value;renderAll();}); d6.appendChild(i6); row3.appendChild(d6); general.appendChild(row3);
     var d7=el("div"); d7.appendChild(el("label",null,"Link descrizione")); var i7=el("input"); i7.type="text"; i7.value=fac.descrizione||""; i7.placeholder="https://..."; i7.addEventListener("input",function(){fac.descrizione=i7.value;}); d7.appendChild(i7); general.appendChild(d7); det.appendChild(general);
 
     det.appendChild(el("h4","structure-section-title",config.pluraleLabel+" presenti")); for(var i=0;i<LIST.length;i++){det.appendChild(buildOccupantCard(LIST[i],stages,config,LIST,ARCHIVIO));}
