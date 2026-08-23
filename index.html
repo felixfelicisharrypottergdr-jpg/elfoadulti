@@ -1459,39 +1459,6 @@
     return getDoc(doc(fbDb, PERSON_COLLECTION, pgId)).then(function(snap){ return snap.exists() ? snap.data() : null; });
   };
 
-  window.fbDeleteOwnPg = function(pgId, expectedRevision){
-    var ref = doc(fbDb, PERSON_COLLECTION, pgId);
-    var expected = Math.max(0, parseInt(expectedRevision,10) || 0);
-    return runTransaction(fbDb, async function(tx){
-      var snap = await tx.get(ref);
-      if(!snap.exists()){ return {alreadyMissing:true}; }
-      var cur = snap.data() || {};
-      if(cur._deleted){ return {alreadyDeleted:true}; }
-
-      var remoteRevision = Math.max(0, parseInt(cur._dbRevision,10) || 0);
-      if(remoteRevision !== expected){ throw new Error("revision-conflict"); }
-
-      tx.set(ref, {
-        _deleted:true,
-        _archiviato:true,
-        _cleanupPending:true,
-        _pgName:pgId,
-        _schemaVersion:Math.max(25,parseInt(cur._schemaVersion,10)||0),
-        _dbRevision:remoteRevision+1,
-        _deletedAt:serverTimestamp(),
-        _deletedBy:"pg",
-        _lastModifiedAt:serverTimestamp(),
-        _lastModifiedBy:"pg",
-        _lastSessionId:"",
-        _lastAction:"PG eliminato dal proprietario tramite il Tool"
-      });
-      return {deleted:true};
-    }).then(function(){ return {ok:true}; }).catch(function(e){
-      console.error(e);
-      return {ok:false,code:e&&e.message?e.message:(e&&e.code?e.code:"error")};
-    });
-  };
-
   window.fbGetAccrediti = function(pgId){
     var accCollection = PERSON_COLLECTION === "personaggi_adulti" ? "accrediti_adulti" : "accrediti_studenti";
     return getDoc(doc(fbDb, accCollection, pgId)).then(function(snap){ return snap.exists() ? snap.data() : {}; });
@@ -2089,6 +2056,7 @@
   var SERRE = []; var serraCounter = 0; var piantaCounter = 0;
   var RISERVE = []; var riservaCounter = 0; var creaturaCounter = 0; var medichCounter = 0;
   var IMPORT_HISTORY = [];
+  var STUDENT_IMPORT_STATE = { sourcePg:"", offset:null, months:false, calderoni:false, piante:false, creature:false, dispensa:false };
   var DISPENSA = { ingredienti:[], movimenti:[], archivioTotali:{ galeoniVendite:0, perCommercianteTipo:{}, conteggiMovimenti:{} } }; var ingredienteCounter = 0; var movimentoCounter = 0;
   var DISPENSA_BATCH = { selected:{}, lotti:{}, tipo:"Usato ONGame in purezza", data:"", link:"", commerciante:"Lo Zoppo", galeoni:0 };
   function resetDispensaBatch(){ DISPENSA_BATCH = { selected:{}, lotti:{}, tipo:"Usato ONGame in purezza", data:"", link:"", commerciante:"Lo Zoppo", galeoni:0 }; }
@@ -2131,7 +2099,12 @@
     for(var i=nodes.length-1;i>=0;i--){
       var node=nodes[i];
       if(!allowed[node.tagName]){ node.replaceWith(document.createTextNode(node.textContent || "")); continue; }
+      /* Mantieni soltanto le classi interne realmente usate dal Tool.
+         Tutti gli altri attributi e classi inseriti nei dati vengono eliminati. */
+      var safeSpanClasses={"cb-credit-values":1,"dispensa-block-number":1,"dispensa-block-label":1};
+      var safeClass=node.tagName==="SPAN"?String(node.getAttribute("class")||"").split(/\s+/).filter(function(c){return !!safeSpanClasses[c];}).join(" "):"";
       while(node.attributes.length){ node.removeAttribute(node.attributes[0].name); }
+      if(safeClass){ node.setAttribute("class",safeClass); }
     }
     return template.innerHTML;
   }
@@ -2605,7 +2578,7 @@
   function historyUserSnapshot(){
     var st=cloneHistoryState(collectState());
     /* Metadati tecnici Firebase non devono mai tornare indietro. */
-    ["_schemaVersion","_dbRevision","_pgName","_lastModifiedAt","_lastModifiedBy","_lastSessionId","_archiveUnlockUntil","_archiviato"].forEach(function(k){delete st[k];});
+    ["_schemaVersion","_dbRevision","_pgName","_lastModifiedAt","_lastModifiedBy","_lastSessionId","_archiveUnlockUntil","_archiviato","RICHIESTA_ELIMINAZIONE"].forEach(function(k){delete st[k];});
     return st;
   }
 
@@ -2692,6 +2665,7 @@
       lastNarratorAction:LAST_NARRATOR_ACTION,
       archiveUnlockUntil:ARCHIVE_UNLOCK_UNTIL,
       pgArchiviato:PG_ARCHIVIATO,
+      deletionRequested:DELETE_REQUESTED,
       forcePersist:FORCE_PERSIST_SAVE,
       conflictLocked:SAVE_CONFLICT_LOCKED,
       openDetails:cloneHistoryState(OPEN_DETAILS),
@@ -2708,6 +2682,7 @@
     merged._lastSessionId=keep.lastSessionId;
     merged._archiveUnlockUntil=keep.archiveUnlockUntil;
     merged._archiviato=keep.pgArchiviato;
+    merged.RICHIESTA_ELIMINAZIONE=keep.deletionRequested;
 
     HISTORY_RESTORING=true;
     applyState(merged);
@@ -2726,6 +2701,7 @@
     LAST_NARRATOR_ACTION=keep.lastNarratorAction;
     ARCHIVE_UNLOCK_UNTIL=keep.archiveUnlockUntil;
     PG_ARCHIVIATO=keep.pgArchiviato;
+    DELETE_REQUESTED=keep.deletionRequested;
     FORCE_PERSIST_SAVE=keep.forcePersist;
     SAVE_CONFLICT_LOCKED=keep.conflictLocked;
     OPEN_DETAILS=keep.openDetails||{};
@@ -2800,6 +2776,7 @@
     LABORATORI = []; labCounter = 0; postazCounter = 0;
     SERRE = []; serraCounter = 0; piantaCounter = 0;
     RISERVE = []; riservaCounter = 0; creaturaCounter = 0; medichCounter = 0; IMPORT_HISTORY = [];
+    STUDENT_IMPORT_STATE = { sourcePg:"", offset:null, months:false, calderoni:false, piante:false, creature:false, dispensa:false };
     DISPENSA = { ingredienti:[], movimenti:[], archivioTotali:{ galeoniVendite:0, perCommercianteTipo:{}, conteggiMovimenti:{} } }; ingredienteCounter = 0; movimentoCounter = 0; resetDispensaBatch(); PG_ARCHIVIATO = false; DELETE_REQUESTED = false; PG_DOC_EXISTS = false; DB_REVISION = 0;
     PARAMETRI_SOCIALI = {popolarita:null,prestigio:null,virtuosi:null,sinistri:null}; VERIFICHE_PARAMETRI_SOCIALI = {}; SOCIAL_SYNC_META = { lastStaffFingerprint:"" };
     OPEN_DETAILS = {}; stopAccreditiWatch(); accreditiCache = null; ACCREDITI_LOAD_STATE="idle"; ACCREDITI_WATCH_ACTIVE=false; SAVE_CONFLICT_LOCKED=false; var conflictOverlay=document.getElementById("revision-conflict-overlay");if(conflictOverlay){conflictOverlay.remove();} LAST_MODIFIED_AT=null; LAST_MODIFIED_BY=""; LAST_SESSION_ID=""; LAST_NARRATOR_AT=null; LAST_NARRATOR_ACTION=""; DATA_DIRTY=false; FORCE_PERSIST_SAVE=false; ARCHIVE_UNLOCK_UNTIL=null; LAST_PERSISTED_STATE=null; LAST_AUDITED_STATE=null; PENDING_AUDIT_STATE=null; SESSION_SNAPSHOT_DONE=false; LAST_SNAPSHOT_MS=0; SAVE_IN_FLIGHT_PROMISE=null; SAVE_FORCE_AGAIN=false;
@@ -2816,7 +2793,7 @@
       LABORATORI: LABORATORI, labCounter: labCounter, postazCounter: postazCounter,
       SERRE: SERRE, serraCounter: serraCounter, piantaCounter: piantaCounter,
       RISERVE: RISERVE, riservaCounter: riservaCounter, creaturaCounter: creaturaCounter, medichCounter: medichCounter,
-      IMPORT_HISTORY: IMPORT_HISTORY
+      IMPORT_HISTORY: IMPORT_HISTORY, STUDENT_IMPORT_STATE: STUDENT_IMPORT_STATE
     };
   }
 
@@ -2909,6 +2886,26 @@
     if(data.creaturaCounter){ creaturaCounter = data.creaturaCounter; }
     if(data.medichCounter){ medichCounter = data.medichCounter; }
     if(Array.isArray(data.IMPORT_HISTORY)){ IMPORT_HISTORY = data.IMPORT_HISTORY.map(function(x){return String(x);}); }
+    if(data.STUDENT_IMPORT_STATE && typeof data.STUDENT_IMPORT_STATE==="object" && !Array.isArray(data.STUDENT_IMPORT_STATE)){
+      var sis=data.STUDENT_IMPORT_STATE;
+      var rawOffset=(sis.offset===null||sis.offset===undefined||String(sis.offset).trim()==="")?null:parseInt(sis.offset,10);
+      STUDENT_IMPORT_STATE={
+        sourcePg:String(sis.sourcePg||""),
+        offset:Number.isFinite(rawOffset)&&rawOffset>=0?rawOffset:null,
+        months:!!sis.months, calderoni:!!sis.calderoni, piante:!!sis.piante, creature:!!sis.creature, dispensa:!!sis.dispensa
+      };
+    }else{
+      /* Migrazione dei trasferimenti creati prima del registro per-componenti.
+         Le strutture e i mesi sono riconoscibili; la Dispensa viene considerata già
+         trasferita solo in presenza di uno storico import e di ingredienti esistenti. */
+      STUDENT_IMPORT_STATE={sourcePg:IMPORT_HISTORY.length?String(PG_ID||""):"",offset:null,months:false,calderoni:false,piante:false,creature:false,dispensa:false};
+      STUDENT_IMPORT_STATE.months=MESI.some(function(m){return !!(m&&(m._importedFromStudent||/\(da Studente\)\s*$/i.test(String(m.nome||""))));});
+      STUDENT_IMPORT_STATE.calderoni=LABORATORI.some(function(x){return /^Importato da Studente$/i.test(String(x&&x.nome||""));});
+      STUDENT_IMPORT_STATE.piante=SERRE.some(function(x){return /^Importata da Studente$/i.test(String(x&&x.nome||""));});
+      STUDENT_IMPORT_STATE.creature=RISERVE.some(function(x){return /^Importata da Studente$/i.test(String(x&&x.nome||""));});
+      STUDENT_IMPORT_STATE.dispensa=IMPORT_HISTORY.length>0 && DISPENSA.ingredienti.length>0;
+      if(IMPORT_HISTORY.length){DATA_DIRTY=true;}
+    }
     if(!Array.isArray(MESI)){MESI=[];DATA_DIRTY=true;}
     for(var nmi=0;nmi<MESI.length;nmi++){
       if(!Array.isArray(MESI[nmi].posts)){MESI[nmi].posts=[];DATA_DIRTY=true;}
@@ -5483,7 +5480,7 @@
     for(var n=0;n<lab.POSTAZIONI.length;n++){
       var postaz = lab.POSTAZIONI[n];
       lines.push("");
-      lines.push("[color=#7441a4]<b>Postazione n\\u00b0" + postaz.numero + "</b>[/color]");
+      lines.push("[color=#7441a4]<b>Postazione n°" + postaz.numero + "</b>[/color]");
       lines.push("<b>\u2a2f Data di creazione e link della role, se presente:</b> " + forumBbUrl(postaz.dataLink, postaz.dataTesto));
       lines.push("<b>\u2a2f Nome Pozione e Classificazione:</b> " + postaz.nomePozione + ", " + postaz.classificazione);
       lines.push("<b>\u2a2f Tipologia:</b> " + postaz.tipologia);
@@ -6411,7 +6408,7 @@
     p.appendChild(el("h2", null, "Importa da Studente"));
     p.appendChild(el("div", "guide-text",
       "Incolla qui il pacchetto di trasferimento generato dallo strumento Gestione PG Studente (Step \u00abDiventa Adulto \u2192 Esporta\u00bb). " +
-      "I post verranno aggiunti alla tua lista condivisa e le Pozioni/Piante/Creature e la Dispensa importate manterranno tutto il progresso gi\u00e0 fatto (Cicli, post accumulati)."));
+      "I post verranno aggiunti alla tua lista condivisa e le Pozioni/Piante/Creature e la Dispensa importate manterranno tutto il progresso gi\u00e0 fatto (Cicli, post accumulati). Se in un secondo momento importi un pacchetto completato, il Tool aggiunge soltanto le sezioni che non erano state trasferite prima e salta automaticamente quelle gi\u00e0 presenti."));
 
     if(ultimoImportRisultato !== null){
       p.appendChild(el("div", "guide-text", "<b>Ultima importazione:</b> " + ultimoImportRisultato));
@@ -6436,28 +6433,62 @@
         renderAll();
         return;
       }
+      /* Prima dell'import controlla i numeri globali originali. Un pacchetto legacy
+         con duplicati renderebbe ambigui i riferimenti di Pozioni/Piante/Creature. */
+      var sourceGlobalSeen={},sourceGlobalDup={};
+      var sourceMesi=Array.isArray(data.mesi)?data.mesi:[];
+      for(var sgm=0;sgm<sourceMesi.length;sgm++){
+        var sgPosts=Array.isArray(sourceMesi[sgm]&&sourceMesi[sgm].posts)?sourceMesi[sgm].posts:[];
+        for(var sgp=0;sgp<sgPosts.length;sgp++){
+          var sgn=parseInt(sgPosts[sgp]&&sgPosts[sgp].globalNo,10);
+          if(!(sgn>0))continue;
+          if(sourceGlobalSeen[sgn])sourceGlobalDup[sgn]=true;else sourceGlobalSeen[sgn]=true;
+        }
+      }
+      var sourceDupList=Object.keys(sourceGlobalDup).map(function(x){return parseInt(x,10);}).sort(function(x,y){return x-y;});
+      if(sourceDupList.length){
+        ultimoImportRisultato = "il pacchetto contiene numeri globali duplicati ("+sourceDupList.join(", ")+"). Per sicurezza l'importazione è bloccata: i riferimenti alle lavorazioni diventerebbero ambigui.";
+        renderAll();
+        return;
+      }
       var packageId=String(data.transferId||("legacy-"+transferFingerprint(data)));
       if(IMPORT_HISTORY.indexOf(packageId)>=0){
         ultimoImportRisultato = "questo stesso pacchetto risulta già importato: operazione annullata per evitare duplicati.";
         renderAll();
         return;
       }
-      var hasPreviousStudentImport=IMPORT_HISTORY.length>0;
-      if(!hasPreviousStudentImport){
-        for(var hmi=0;hmi<MESI.length;hmi++){if(MESI[hmi]&&((MESI[hmi]._importedFromStudent)||/\(da Studente\)\s*$/i.test(String(MESI[hmi].nome||"")))){hasPreviousStudentImport=true;break;}}
-      }
-      if(!hasPreviousStudentImport){for(var hli=0;hli<LABORATORI.length;hli++){if(/^Importato da Studente$/i.test(String(LABORATORI[hli].nome||""))){hasPreviousStudentImport=true;break;}}}
-      if(!hasPreviousStudentImport){for(var hsi=0;hsi<SERRE.length;hsi++){if(/^Importata da Studente$/i.test(String(SERRE[hsi].nome||""))){hasPreviousStudentImport=true;break;}}}
-      if(!hasPreviousStudentImport){for(var hri=0;hri<RISERVE.length;hri++){if(/^Importata da Studente$/i.test(String(RISERVE[hri].nome||""))){hasPreviousStudentImport=true;break;}}}
-      if(hasPreviousStudentImport&&!confirm("Questo PG ha già importato almeno un pacchetto da Studente. Se quello attuale è stato rigenerato dopo il primo import, può contenere nuovamente mesi o strutture già trasferiti e creare duplicati. Vuoi importarlo comunque?")){
-        ultimoImportRisultato = "seconda importazione annullata per evitare possibili duplicati.";
+      var requested={
+        months:Object.prototype.hasOwnProperty.call(data,"mesi"),
+        calderoni:Object.prototype.hasOwnProperty.call(data,"calderoni")||Object.prototype.hasOwnProperty.call(data,"archivioCalderoni"),
+        piante:Object.prototype.hasOwnProperty.call(data,"piante")||Object.prototype.hasOwnProperty.call(data,"archivioPiante"),
+        creature:Object.prototype.hasOwnProperty.call(data,"creature")||Object.prototype.hasOwnProperty.call(data,"archivioCreature")||Object.prototype.hasOwnProperty.call(data,"medicheria"),
+        dispensa:Object.prototype.hasOwnProperty.call(data,"dispensa")
+      };
+      var newParts=[];Object.keys(requested).forEach(function(k){if(requested[k]&&!STUDENT_IMPORT_STATE[k])newParts.push(k);});
+      if(!newParts.length){
+        ultimoImportRisultato = "questo pacchetto non contiene nuove sezioni da trasferire: le parti incluse risultano già importate. Operazione annullata per evitare duplicati.";
         renderAll();
         return;
       }
+      var needsPostOffset=(newParts.indexOf("months")>=0||newParts.indexOf("calderoni")>=0||newParts.indexOf("piante")>=0||newParts.indexOf("creature")>=0);
+      var offset=STUDENT_IMPORT_STATE.offset;
+      if(offset===null||offset===undefined||!Number.isFinite(Number(offset))){
+        if(needsPostOffset){
+          if(IMPORT_HISTORY.length && STUDENT_IMPORT_STATE.months){
+            ultimoImportRisultato = "esiste già un trasferimento Studente precedente creato con una versione più vecchia del Tool e non è possibile ricostruire con certezza l'offset dei Post. Per sicurezza le nuove strutture non vengono importate automaticamente: usa il backup precedente o chiedi allo Staff una migrazione assistita.";
+            renderAll();
+            return;
+          }
+          offset=globalPostCounter;
+          STUDENT_IMPORT_STATE.offset=offset;
+        }else{offset=0;}
+      }else{offset=Math.max(0,parseInt(offset,10)||0);}
+      STUDENT_IMPORT_STATE.sourcePg=String(data.sourcePg||PG_ID||STUDENT_IMPORT_STATE.sourcePg||"");
 
-      var offset = globalPostCounter;
-      var importedMesi = Array.isArray(data.mesi) ? data.mesi : [];
-      var legacyImportSeq = 0;
+      var importedMesi = (requested.months&&!STUDENT_IMPORT_STATE.months&&Array.isArray(data.mesi)) ? data.mesi : [];
+      var legacyImportSeq = 0, reservedSourceGlobals={};
+      for(var rmi=0;rmi<importedMesi.length;rmi++){var rps=Array.isArray(importedMesi[rmi]&&importedMesi[rmi].posts)?importedMesi[rmi].posts:[];for(var rpi=0;rpi<rps.length;rpi++){var rg=parseInt(rps[rpi]&&rps[rpi].globalNo,10);if(rg>0)reservedSourceGlobals[rg]=true;}}
+      function nextLegacySourceGlobal(){do{legacyImportSeq++;}while(reservedSourceGlobals[legacyImportSeq]);reservedSourceGlobals[legacyImportSeq]=true;return legacyImportSeq;}
       for(var mi=0; mi<importedMesi.length; mi++){
         var im = importedMesi[mi] || {};
         meseCounter = meseCounter + 1;
@@ -6467,21 +6498,22 @@
         for(var pj=0; pj<imPosts.length; pj++){
           postCounter = postCounter + 1;
           var op = imPosts[pj] || {};
-          legacyImportSeq++;
-          var oldGlobal = parseInt(op.globalNo,10);
-          if(isNaN(oldGlobal) || oldGlobal<=0){ oldGlobal = legacyImportSeq; }
-          var newGlobal = offset + oldGlobal;
-          if(newGlobal > globalPostCounter){ globalPostCounter = newGlobal; }
+          var oldGlobal = parseInt(op.globalNo,10),newGlobal=null;
+          if(isValidPostLink(op.link)){
+            if(isNaN(oldGlobal) || oldGlobal<=0){ oldGlobal = nextLegacySourceGlobal(); }
+            newGlobal = offset + oldGlobal;
+            if(newGlobal > globalPostCounter){ globalPostCounter = newGlobal; }
+          }
           newMeseObj.posts.push({ id: postCounter, globalNo:newGlobal, link: op.link, nota: op.nota || "", pp: op.pp != null ? op.pp : "", eventoBonusEscluso:!!op.eventoBonusEscluso, bonusEsclusi:(op.bonusEsclusi&&typeof op.bonusEsclusi==="object")?JSON.parse(JSON.stringify(op.bonusEsclusi)):{}, bonusUtilizzi:(op.bonusUtilizzi&&typeof op.bonusUtilizzi==="object")?JSON.parse(JSON.stringify(op.bonusUtilizzi)):{} });
         }
         MESI.push(newMeseObj);
       }
-      if(data.globalPostCounter){ globalPostCounter = Math.max(globalPostCounter, offset + num(data.globalPostCounter,0)); }
+      if(needsPostOffset && data.globalPostCounter){ globalPostCounter = Math.max(globalPostCounter, offset + num(data.globalPostCounter,0)); }
       recomputePosts();
 
 
       var countIngredienti = 0;
-      if(data.dispensa){
+      if(requested.dispensa && !STUDENT_IMPORT_STATE.dispensa && data.dispensa){
         var srcIng = Array.isArray(data.dispensa.ingredienti) ? data.dispensa.ingredienti : [];
         var srcMov = Array.isArray(data.dispensa.movimenti) ? data.dispensa.movimenti : [];
         var idMap = {};
@@ -6509,8 +6541,8 @@
         if(srcIng.length || srcMov.length){ STRUTTURE.dispensa = true; normalizeDispensaLots(); }
       }
 
-      var countCald = 0, activeCald=Array.isArray(data.calderoni)?data.calderoni:[], archivedCald=Array.isArray(data.archivioCalderoni)?data.archivioCalderoni:[];
-      if(activeCald.length || archivedCald.length){
+      var countCald = 0, activeCald=(requested.calderoni&&!STUDENT_IMPORT_STATE.calderoni&&Array.isArray(data.calderoni))?data.calderoni:[], archivedCald=(requested.calderoni&&!STUDENT_IMPORT_STATE.calderoni&&Array.isArray(data.archivioCalderoni))?data.archivioCalderoni:[];
+      if(requested.calderoni && !STUDENT_IMPORT_STATE.calderoni && (activeCald.length || archivedCald.length)){
         var newLab = newLaboratorio();newLab.nome = "Importato da Studente";
         function importPotion(src,archived){var copy=JSON.parse(JSON.stringify(src||{}));postazCounter++;copy.id=postazCounter;copy.startIndex=Math.max(1,num(copy.startIndex,1)+offset);if(archived){if(!copy._archivedAt)archiveStamp(copy);newLab.ARCHIVIO_POSTAZIONI.push(copy);}else{newLab.POSTAZIONI.push(copy);}countCald++;}
         for(var c=0;c<activeCald.length;c++)importPotion(activeCald[c],false);
@@ -6518,8 +6550,8 @@
         LABORATORI.push(newLab);STRUTTURE.laboratorio = true;
       }
 
-      var countPiante = 0, activePiante=Array.isArray(data.piante)?data.piante:[], archivedPiante=Array.isArray(data.archivioPiante)?data.archivioPiante:[];
-      if(activePiante.length || archivedPiante.length){
+      var countPiante = 0, activePiante=(requested.piante&&!STUDENT_IMPORT_STATE.piante&&Array.isArray(data.piante))?data.piante:[], archivedPiante=(requested.piante&&!STUDENT_IMPORT_STATE.piante&&Array.isArray(data.archivioPiante))?data.archivioPiante:[];
+      if(requested.piante && !STUDENT_IMPORT_STATE.piante && (activePiante.length || archivedPiante.length)){
         var newSerraFac = newSerra();newSerraFac.nome = "Importata da Studente";
         function importPlant(src,archived){var copyP=JSON.parse(JSON.stringify(src||{}));piantaCounter++;copyP.id=piantaCounter;offsetCicli(copyP.cicli,offset);if(archived){if(!copyP._archivedAt)archiveStamp(copyP);newSerraFac.ARCHIVIO_PIANTE.push(copyP);}else{newSerraFac.PIANTE.push(copyP);}countPiante++;}
         for(var pI=0;pI<activePiante.length;pI++)importPlant(activePiante[pI],false);
@@ -6527,10 +6559,10 @@
         SERRE.push(newSerraFac);STRUTTURE.serra = true;
       }
 
-      var countCreature = 0, activeCreature=Array.isArray(data.creature)?data.creature:[], archivedCreature=Array.isArray(data.archivioCreature)?data.archivioCreature:[];
-      var medStud=data.medicheria&&typeof data.medicheria==="object"?data.medicheria:null;
+      var countCreature = 0, activeCreature=(requested.creature&&!STUDENT_IMPORT_STATE.creature&&Array.isArray(data.creature))?data.creature:[], archivedCreature=(requested.creature&&!STUDENT_IMPORT_STATE.creature&&Array.isArray(data.archivioCreature))?data.archivioCreature:[];
+      var medStud=(requested.creature&&!STUDENT_IMPORT_STATE.creature&&data.medicheria&&typeof data.medicheria==="object")?data.medicheria:null;
       var hasMed=!!(medStud&&(String(medStud.nome||"").trim()||String(medStud.specie||"").trim()||String(medStud.link||"").trim()));
-      if(activeCreature.length || archivedCreature.length || hasMed){
+      if(requested.creature && !STUDENT_IMPORT_STATE.creature && (activeCreature.length || archivedCreature.length || hasMed)){
         var newRiservaFac = newRiserva();newRiservaFac.nome = "Importata da Studente";
         function importCreature(src,archived){var copyC=JSON.parse(JSON.stringify(src||{}));creaturaCounter++;copyC.id=creaturaCounter;offsetCicli(copyC.cicli,offset);if(archived){if(!copyC._archivedAt)archiveStamp(copyC);newRiservaFac.ARCHIVIO_CREATURE.push(copyC);}else{newRiservaFac.CREATURE.push(copyC);}countCreature++;}
         for(var crI=0;crI<activeCreature.length;crI++)importCreature(activeCreature[crI],false);
@@ -6541,8 +6573,21 @@
 
       var totPostImportati = 0;
       for(var ci=0; ci<importedMesi.length; ci++){ totPostImportati += Array.isArray(importedMesi[ci]&&importedMesi[ci].posts)?importedMesi[ci].posts.length:0; }
+      if(requested.months&&!STUDENT_IMPORT_STATE.months){STUDENT_IMPORT_STATE.months=true;}
+      if(requested.calderoni&&!STUDENT_IMPORT_STATE.calderoni){STUDENT_IMPORT_STATE.calderoni=true;}
+      if(requested.piante&&!STUDENT_IMPORT_STATE.piante){STUDENT_IMPORT_STATE.piante=true;}
+      if(requested.creature&&!STUDENT_IMPORT_STATE.creature){STUDENT_IMPORT_STATE.creature=true;}
+      if(requested.dispensa&&!STUDENT_IMPORT_STATE.dispensa){STUDENT_IMPORT_STATE.dispensa=true;}
       IMPORT_HISTORY.push(packageId);
-      ultimoImportRisultato = totPostImportati + " post (" + importedMesi.length + " mesi), " + countCald + " Pozioni, " + countPiante + " Piante, " + countCreature + " Creature, " + countIngredienti + " Ingredienti in Dispensa importati con successo.";
+      var importedLabels=[];
+      if(newParts.indexOf("months")>=0)importedLabels.push(importedMesi.length+" mesi / "+totPostImportati+" post");
+      if(newParts.indexOf("calderoni")>=0)importedLabels.push(countCald+" Pozioni");
+      if(newParts.indexOf("piante")>=0)importedLabels.push(countPiante+" Piante");
+      if(newParts.indexOf("creature")>=0)importedLabels.push(countCreature+" Creature");
+      if(newParts.indexOf("dispensa")>=0)importedLabels.push(countIngredienti+" Ingredienti in Dispensa");
+      var partLabels={months:"Mesi/Post",calderoni:"Pozioni",piante:"Piante",creature:"Creature",dispensa:"Dispensa"};
+      var skippedLabels=[];Object.keys(requested).forEach(function(k){if(requested[k]&&newParts.indexOf(k)<0)skippedLabels.push(partLabels[k]||k);});
+      ultimoImportRisultato = "importazione completata: "+importedLabels.join(", ")+"."+(skippedLabels.length?" Sezioni già trasferite e quindi saltate: "+skippedLabels.join(", ")+".":"");
       scheduleSave(0);renderAll();
     });
     p.appendChild(btn);
