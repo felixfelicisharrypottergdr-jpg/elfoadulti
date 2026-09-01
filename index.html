@@ -3,7 +3,7 @@
 <!-- Accesso pubblico + password di modifica, sessione browser, 01/09/2026. -->
 <!-- Il Mio Elfo Domestico — Adulto: integrazione Azioni Illegali 01/09/2026. I tool specialistici restano autoritativi per i dadi; l'Elfo conserva legalità, protezioni ed esiti senza rilanciare. -->
 <html lang="it">
-<!-- v5 password: etichette accesso più chiare + maggiore spazio prima del details -->
+<!-- v8 password: ritmo verticale uniformato fra selettore, nota e details; v7: font Magic sul summary password -->
 <!-- v3 password: tendina PG chiusa con clic esterno -->
 
 <head>
@@ -1409,13 +1409,14 @@
   /* v26 - Elfi pubblici in lettura, password solo per la modifica */
   .elfo-access-state{margin:12px 0;padding:11px 13px;border:1px solid var(--gold);border-radius:8px;background:rgba(255,255,255,.38);line-height:1.5}
   .elfo-access-state.view{border-color:#8a7042}.elfo-access-state.edit{border-color:#397247;background:rgba(46,107,62,.10)}
-  .elfo-password-details{margin-top:24px}.elfo-password-row{display:flex;gap:9px;align-items:flex-end;flex-wrap:wrap;margin-top:10px}.elfo-password-row>div{flex:1;min-width:220px}.elfo-password-row button{margin-top:0}
+  .elfo-password-details{margin-top:12px}.elfo-password-row{display:flex;gap:9px;align-items:flex-end;flex-wrap:wrap;margin-top:10px}.elfo-password-row>div{flex:1;min-width:220px}.elfo-password-row button{margin-top:0}
+  .elfo-password-details > summary{font-family:'magic',Georgia,'Times New Roman',serif !important;}
   .pg-picker{position:relative;max-width:640px}.pg-picker-line{display:grid;grid-template-columns:minmax(0,1fr) 42px;gap:6px;align-items:stretch}
   .pg-picker-line input{margin:0}.pg-picker-arrow{margin:0!important;padding:0!important;min-width:42px;font-size:1rem}
   .pg-picker-menu{position:absolute;z-index:90;left:0;right:48px;top:calc(100% + 4px);max-height:260px;overflow:auto;border:1px solid var(--gold);border-radius:7px;background:#fffdf5;box-shadow:0 9px 24px rgba(0,0,0,.28)}
   .pg-picker-menu[hidden]{display:none}.pg-picker-option{display:block;width:100%;margin:0!important;padding:8px 10px;border:0;border-bottom:1px solid rgba(169,128,58,.25);border-radius:0;background:#fffdf5;color:var(--ink);text-align:left;cursor:pointer;font:inherit}
   .pg-picker-option:hover,.pg-picker-option:focus{background:#efe4c4}.pg-picker-empty{padding:9px 10px;font-size:.8rem;color:#6a5a3a}
-  .elfo-readonly-note{margin:8px 0;padding:8px 10px;border-left:4px solid #8a7042;background:rgba(255,255,255,.28);font-size:.8rem}
+  .elfo-readonly-note{margin:10px 0 12px;padding:8px 10px;border-left:4px solid #8a7042;background:rgba(255,255,255,.28);font-size:.8rem}
   .elfo-readonly input[readonly],.elfo-readonly textarea[readonly],.elfo-readonly select:disabled,.elfo-readonly input:disabled{opacity:1!important;color:inherit!important;-webkit-text-fill-color:currentColor!important}
   .elfo-readonly button:disabled{opacity:.58}
 
