@@ -1354,7 +1354,7 @@
 
 
   /* ==================================================== */
-  /* TACCUINO PERSONALE — solo browser, mai Firebase       */
+  /* TACCUINO PERSONALE — locale + backup cloud separato   */
   /* ==================================================== */
   .tacc-evidence{margin-top:10px;padding-top:10px;border-top:1px dashed rgba(58,43,26,.25);}
   .tacc-evidence-title{font-weight:800;margin-bottom:7px;font-size:.82rem;}
@@ -1623,10 +1623,44 @@
   .tutorial-progress{font-size:.72rem;font-weight:800;color:#6f6249;margin-bottom:5px}
   .tutorial-card-title{font-size:.98rem;font-weight:900;color:var(--green-dark)}
   .tutorial-disabled-note{margin-top:7px!important;padding:6px 8px;border-radius:6px;background:rgba(169,128,58,.12);font-size:.76rem!important}
+
+  .tutorial-card-deep{padding:14px 16px}
+  .tutorial-card-deep .tutorial-intro{font-size:.87rem;line-height:1.52;margin-bottom:10px}
+  .tutorial-guide-group{margin:8px 0;border:1px solid rgba(128,96,42,.28);border-radius:7px;background:rgba(255,255,255,.46);overflow:hidden}
+  .tutorial-guide-group>summary{cursor:pointer;padding:8px 10px;font-size:.80rem;font-weight:900;color:var(--green-dark);background:rgba(169,128,58,.09)}
+  .tutorial-guide-group[open]>summary{border-bottom:1px solid rgba(128,96,42,.20)}
+  .tutorial-guide-list{margin:8px 12px 10px 28px;padding:0;font-size:.79rem;line-height:1.48}
+  .tutorial-guide-list li{margin:5px 0;padding-left:2px}
+  .tutorial-card-deep .tutorial-actions{margin-top:12px;padding-top:10px;border-top:1px solid rgba(128,96,42,.25)}
   .step-btn.tutorial-target{position:relative;z-index:2;opacity:1!important;outline:3px solid var(--parch);outline-offset:2px;box-shadow:0 0 0 5px var(--gold),0 0 18px rgba(255,245,197,.72)!important;transform:translateY(-1px)}
   .context-help-btn{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;min-width:22px;margin:0 0 0 8px!important;padding:0!important;border-radius:50%!important;font-size:.72rem!important;vertical-align:middle;opacity:.68}
   .context-help-box{margin:8px 0 14px;padding:9px 11px;border-left:4px solid var(--gold);background:rgba(169,128,58,.10);border-radius:6px;font-size:.8rem;line-height:1.45}
   @media(max-width:520px){.tutorial-launch-row{justify-content:center;margin-top:-4px}.tutorial-invite,.tutorial-card{padding:11px 12px}.tutorial-actions{justify-content:center}.step-btn.tutorial-target{outline-width:2px;box-shadow:0 0 0 3px var(--gold),0 0 12px rgba(255,245,197,.65)!important}}
+
+
+  /* Indicatore immediato del ramo dell'Elfo */
+  .elfo-mode-badge{
+    display:table;
+    margin:-4px auto 10px;
+    padding:4px 10px;
+    border:1px solid currentColor;
+    border-radius:999px;
+    font-size:.68rem;
+    line-height:1;
+    font-weight:900;
+    letter-spacing:.11em;
+    text-transform:uppercase;
+    background:rgba(0,0,0,.18);
+    box-shadow:0 2px 8px rgba(0,0,0,.18);
+  }
+  .elfo-mode-badge.studente{color:#ef8490;text-shadow:0 0 7px rgba(239,132,144,.35);}
+  .elfo-mode-badge.adulto{color:#8fc1ff;text-shadow:0 0 7px rgba(143,193,255,.35);}
+  .tacc-legacy-import textarea.tacc-legacy-paste{min-height:210px;font-family:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace;font-size:.76rem;line-height:1.35;}
+  .tacc-import-summary{margin-top:12px;padding:10px 12px;border:1px solid var(--gold);border-radius:7px;background:rgba(255,255,255,.45);font-size:.82rem;line-height:1.45;}
+  .tacc-import-summary.ok{border-color:#5d8d66;background:#edf7ee;}
+  .tacc-import-history details{margin:10px 0;border:1px solid rgba(128,96,42,.34);border-radius:7px;padding:7px 9px;background:rgba(255,255,255,.30);}
+  .tacc-import-history summary{cursor:pointer;font-weight:800;color:var(--green-dark);}
+  .tacc-legacy-raw{white-space:pre-wrap;overflow-wrap:anywhere;max-height:320px;overflow:auto;padding:9px;background:rgba(0,0,0,.05);border-radius:5px;font-family:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace;font-size:.7rem;line-height:1.35;}
 
 </style>
 
@@ -1634,6 +1668,7 @@
 <body>
 <div class="wrap">
   <h1 class="main-title" id="elfoIdentityTitle">Il Mio Elfo Domestico</h1>
+  <div class="elfo-mode-badge adulto" aria-label="Versione adulto">ELFO ADULTO</div>
   <div class="tutorial-launch-row"><button type="button" id="tutorialLaunch" class="tutorial-launch-btn elfo-readonly-safe" aria-label="Apri il tutorial">❔ Guida</button></div>
 
   <div class="steps-nav" id="stepsNav"></div>
@@ -2227,19 +2262,206 @@
   var EDIT_PASSWORD_CONFIGURED = false;
   var NEW_PG_PENDING = false;
   var NEW_PG_PASSWORD_DRAFT = "";
-  var TUTORIAL_VERSION = 1;
+  var TUTORIAL_VERSION = 2;
   var TUTORIAL_STATE = { completedVersion:0, dismissedVersion:0, pendingVersion:0 };
   var TUTORIAL_RUNTIME = { active:false, index:0 };
   var TUTORIAL_CONTENT = {
-    'connessione':{title:'Dati Personaggio e Strutture',text:'Qui apri il tuo Elfo, entri in modifica con la password e scegli quali strutture sono attive. Se una struttura non è attiva, il relativo pulsante resta disabilitato.'},
-    'posts':{title:'I tuoi Post',text:'Qui registri i Post del mese. Il loro numero globale permette all’Elfo di riconoscerli nelle lavorazioni, nei Cicli e nelle Guarigioni senza doverli ricopiare.'},
-    'blindata':{title:'Camera Blindata',text:'Qui tieni sotto controllo Galeoni, movimenti e accrediti collegati ai mesi di gioco.'},
-    'taccuino':{title:'Taccuino',text:'Qui puoi seguire Role, Guarigioni, missioni, PNG, relazioni, appunti e altri progressi personali.'},
-    'dispensa':{title:'Dispensa',text:'Qui trovi gli Ingredienti posseduti. Puoi registrarli manualmente oppure riceverli dalle altre attività e dai tool collegati.'},
-    'laboratorio':{title:'Laboratorio',text:'Qui gestisci le Postazioni e tutte le fasi delle Pozioni: preparazione, produzione, bacchetta, distillazione, imbottigliamento e pulizia.'},
-    'serra':{title:'Serra',text:'Qui gestisci le Piante e i loro Cicli. A fine produzione l’Elfo ti guida nella raccolta degli Ingredienti 🌿; la Riproduzione usa invece i Semi 🌱.'},
-    'riserva':{title:'Riserva',text:'Qui gestisci le Creature e i loro Cicli. A fine produzione l’Elfo ti guida nella raccolta degli Ingredienti delle Creature 🪶.'},
-    'importa':{title:'Importa da Studente',text:'Quando un PG diventa Adulto, qui puoi importare il pacchetto creato dall’Elfo Studente conservando Post, lavorazioni, Piante, Creature e Dispensa già maturati.'}
+    'connessione':{
+      title:'Connessione e Strutture',
+      text:'È la cabina di regia dell’Elfo Adulto: qui scegli il PG, distingui visualizzazione e modifica e decidi quali strutture personali devono essere disponibili.',
+      sections:[
+        '<b>Accesso al Personaggio.</b> Puoi aprire un Elfo registrato senza password; la password serve soltanto per modificarlo.',
+        '<b>Password di modifica.</b> Al primo accesso in modifica la crei qui; quando la modifica è sbloccata vale per tutte le sezioni.',
+        '<b>Dati e identità dell’Elfo.</b> Qui sono raccolti i dati generali del PG e la personalizzazione del nome/appellativo dell’Elfo.',
+        '<b>Strutture attive.</b> Dispensa, Laboratori, Serre e Riserve vengono abilitate da qui; una struttura non attiva rende indisponibile il relativo pulsante.',
+        '<b>Gestione del PG.</b> Puoi cambiare Elfo o inviare al Narratore una richiesta di eliminazione dal tool.'
+      ],
+      automation:[
+        'L’Elfo separa automaticamente <b>sola visualizzazione</b> e <b>modalità modifica</b>.',
+        'Attivando o disattivando una struttura si aggiornano navigazione e funzioni collegate.',
+        'Le modifiche vengono salvate automaticamente; nelle pagine operative restano disponibili salvataggio manuale e Annulla/Ripristina quando previsti.'
+      ],
+      colors:[
+        '<b>Pulsante oro:</b> pagina attualmente aperta.',
+        '<b>Pulsante attenuato:</b> sezione non disponibile perché la struttura non è attiva o il PG non è ancora caricato.'
+      ]
+    },
+    'posts':{
+      title:'I tuoi Post',
+      text:'Qui costruisci la cronologia mensile dei Post del PG. I Post diventano riferimenti riutilizzabili dalle altre attività dell’Elfo.',
+      sections:[
+        '<b>Creazione dei Mesi.</b> Apri un Mese e registra i link dei Post.',
+        '<b>Post del Mese.</b> Ogni link valido riceve un numero globale permanente.',
+        '<b>Archivio dei Mesi.</b> I Mesi conclusi possono essere archiviati mantenendo i riferimenti già usati.',
+        '<b>Storico della numerazione globale.</b> Mantiene leggibili i Post dei Mesi archiviati senza rinumerazioni.',
+        '<b>Guarigioni.</b> Le cure importate o registrate possono riconoscere automaticamente i Post delle Role valide.'
+      ],
+      automation:[
+        'Il numero globale non viene riciclato e permette a Laboratori, Serre, Riserve e Guarigioni di riconoscere lo stesso Post.',
+        'I link duplicati vengono riconosciuti e bloccati.',
+        'Il conteggio delle Guarigioni si aggiorna appena il link viene riconosciuto, senza dover premere «Aggiungi post».',
+        'Raggiunto l’ultimo Post richiesto compare <b>Guarigione completa!</b>.'
+      ],
+      colors:[
+        '<b>❤️ x/y:</b> il Post sta contando per una Guarigione ancora attiva.',
+        '<b>✓ x/y su riga verde chiaro:</b> il Post apparteneva a una Guarigione già conclusa. È uno storico e non richiede azioni.',
+        '<b>Contorno/avviso rosso sul link:</b> link duplicato o non utilizzabile.',
+        '<b>Colori diversi del numero globale:</b> alternano i Mesi per leggibilità; non rappresentano esiti o priorità.'
+      ]
+    },
+    'blindata':{
+      title:'Camera Blindata',
+      text:'Qui l’Elfo prepara il riepilogo economico del Mese, applica i Bonus ai Post corretti e distingue ciò che deve ancora essere accreditato da ciò che il Narratore ha già confermato.',
+      sections:[
+        '<b>Scelta del Mese.</b> Il riepilogo parte dai Post già registrati.',
+        '<b>Bonus del Mese.</b> Gestisce Bonus fissi, variabili, primi X Post e premi con utilizzi limitati.',
+        '<b>Riepilogo dei Post.</b> Mostra Galeoni, PP, altri valori e Bonus applicati al singolo Post.',
+        '<b>Stato di accredito.</b> Distingue ciò che è in attesa da ciò che è già stato accreditato.',
+        '<b>Archivio.</b> Mantiene consultabili i Mesi consolidati e ne controlla l’eventuale eliminazione definitiva.'
+      ],
+      automation:[
+        'Ricalcola i totali senza somme manuali.',
+        'Congela i dati quando un accredito o un archivio consolidato non devono più essere modificati.',
+        'Tiene conto degli utilizzi dei Bonus a consumo anche sul singolo Post.'
+      ],
+      colors:[
+        '<b>Verde/✓:</b> accredito confermato.',
+        '<b>Giallo/arancio/⏳:</b> accredito o verifica ancora in attesa.',
+        '<b>Rosso:</b> azione distruttiva o situazione che richiede attenzione.'
+      ]
+    },
+    'taccuino':{
+      title:'Taccuino',
+      text:'È lo spazio personale trasversale del PG: raccoglie Role, Guarigioni, PNG, missioni, progressi, Extra e appunti senza legarli a una singola struttura.',
+      sections:[
+        '<b>Guarigione.</b> Tiene cure attive/concluse e comunica con i Post.',
+        '<b>Role aperte e Cronologia.</b> Permette di seguire le Role in corso e conservarle nello storico.',
+        '<b>Taccuino PNG.</b> Conserva i PNG utili al gioco del Personaggio.',
+        '<b>FantaHogwarts / FantaWiz.</b> Raccoglie missioni, contatori, persone, requisiti e progressi.',
+        '<b>Extra.</b> Ospita informazioni e progressi personali aggiuntivi.',
+        '<b>Appunti & Backup.</b> Offre note libere ed esportazione/ripristino del Taccuino.',
+        '<b>Importazione vecchio Taccuino.</b> Incolla l’intero codice del Taccuino usato sul Forum: l’Elfo prova a smistare Role, Cronologia, PNG, Missioni, link e banner senza sostituire i dati già presenti e conserva comunque il codice originale.'
+      ],
+      automation:[
+        'Salva una copia locale e sincronizza la copia cloud quando il PG è caricato e la modifica è autorizzata.',
+        'Può ricevere Guarigioni da altri tool e collegarle ai Post del PG.',
+        'I contatori mostrano le soglie raggiunte senza riscattare automaticamente premi che richiedono una conferma.'
+      ],
+      colors:[
+        '<b>Verde/✓:</b> progresso o requisito completato.',
+        '<b>Barre/indicatori:</b> mostrano l’avanzamento verso una soglia.'
+      ]
+    },
+    'dispensa':{
+      title:'Dispensa',
+      text:'Conserva quantità, provenienze, produttori e movimenti degli Ingredienti. È il punto in cui confluiscono Ingredienti trovati, acquistati o prodotti dalle strutture.',
+      sections:[
+        '<b>Ingredienti posseduti.</b> Mostra quantità e lotti presenti.',
+        '<b>Incolla un elenco.</b> Importa più Ingredienti insieme, compreso l’output del Generatore Ricerca Ingredienti.',
+        '<b>Aggiunta manuale dal Glossario.</b> Permette ricerca singola o multipla nel catalogo.',
+        '<b>Movimenti.</b> Uso, vendita, scarto e altri movimenti restano nello storico.',
+        '<b>Progressi delle vendite.</b> Quando previsti, riepiloga conteggi per commerciante e tipo di operazione.'
+      ],
+      automation:[
+        'Ingredienti prodotti da Piante 🌿 e Creature 🪶 possono essere trasferiti direttamente in Dispensa.',
+        'Le dosi autoprodotte restano distinte dagli altri lotti per conservare gli eventuali bonus.',
+        'Un elenco riconosciuto proveniente da un altro tool può generare un avviso globale di importazione.'
+      ],
+      colors:[
+        '<b>Simboli accanto agli Ingredienti:</b> evidenziano caratteristiche previste dal Glossario, quando disponibili.',
+        '<b>Verde negli avvisi di importazione:</b> conferma che dati sono arrivati da un’altra funzione o tool.'
+      ]
+    },
+    'laboratorio':{
+      title:'Laboratorio',
+      text:'Qui un Adulto può gestire più Laboratori/Postazioni e seguire le Pozioni lungo tutte le fasi operative, mantenendo separati progressi, consumi ed esiti.',
+      sections:[
+        '<b>Laboratori e Postazioni.</b> Puoi creare e gestire le strutture disponibili e le relative capacità.',
+        '<b>Pozioni / lavorazioni.</b> Ogni scheda conserva Classificazione e stato della singola lavorazione.',
+        '<b>Preparazione e Produzione.</b> Registrano i passaggi e i Post utilizzati.',
+        '<b>Uso della Bacchetta.</b> Rimane un blocco autonomo quando previsto.',
+        '<b>Distillazione.</b> Tiene traccia dell’esito e dello spazio occupato.',
+        '<b>Imbottigliamento e Pulizia.</b> Gestiscono le fasi finali e le eventuali attese.',
+        '<b>Archivio.</b> Separa le Pozioni concluse dalle lavorazioni ancora attive.'
+      ],
+      automation:[
+        'Riutilizza i Post globali della pagina «I tuoi Post».',
+        'Controlla capacità e limiti delle strutture.',
+        'Mantiene le fasi separate per evitare che una modifica cancelli risultati indipendenti.'
+      ],
+      colors:[
+        '<b>Viola:</b> identifica Pozioni e Laboratorio.',
+        '<b>Classificazione X → XXXXX:</b> sfondo da verde chiaro a giallo/arancio fino al rosso/rosa per distinguere la fascia; non rappresenta l’esito della Pozione.'
+      ]
+    },
+    'serra':{
+      title:'Serra',
+      text:'Qui gestisci una o più Serre e le Piante contenute, seguendo fasi vitali, Cicli, Riproduzione e raccolti fino al trasferimento degli Ingredienti.',
+      sections:[
+        '<b>Serre.</b> Ogni struttura conserva dati generali e capacità.',
+        '<b>Piante presenti.</b> Ogni Pianta mantiene Classificazione, fase vitale e progressi.',
+        '<b>Fasi e Cicli di Produzione.</b> I Post vengono collegati ai Cicli previsti senza confondere durata, numero di Cicli e quantità.',
+        '<b>Riproduzione.</b> È distinta dalla Produzione e può portare ai Semi 🌱.',
+        '<b>Raccolti prioritari.</b> Quando un Ciclo termina, ciò che devi ancora raccogliere viene portato in evidenza.',
+        '<b>Trasferimento in Dispensa.</b> Gli Ingredienti 🌿 registrati possono essere trasferiti direttamente.',
+        '<b>Storico / Archivio.</b> Conserva fasi e Piante concluse.'
+      ],
+      automation:[
+        'Riconosce la fine dei Cicli attraverso i Post.',
+        'Quando il regolamento fornisce dati sufficienti, prepara quantità, dadi e riepilogo del raccolto.',
+        'Blocca l’avanzamento quando resta un raccolto obbligatorio da registrare.',
+        'Marca il trasferimento in Dispensa per evitare accrediti doppi.'
+      ],
+      colors:[
+        '<b>🌿:</b> Ingredienti delle Piante.',
+        '<b>🌱:</b> Semi da Riproduzione.',
+        '<b>Titolo verde:</b> identifica le Piante.',
+        '<b>Classificazione X → XXXXX:</b> sfondo da verde a giallo/arancio/rosso per distinguere la fascia.'
+      ]
+    },
+    'riserva':{
+      title:'Riserva',
+      text:'Qui gestisci una o più Riserve e le Creature contenute, seguendo fasi vitali, Produzione/Riproduzione e Ingredienti senza perdere lo storico.',
+      sections:[
+        '<b>Riserve.</b> Ogni struttura conserva dati generali e capacità.',
+        '<b>Creature presenti.</b> Ogni Creatura mantiene specie, Classificazione, fase vitale e progressi.',
+        '<b>Fasi e Cicli di Produzione.</b> I Post vengono agganciati ai Cicli mantenendo distinti durata, numero di Cicli e quantità prodotta.',
+        '<b>Riproduzione / Gestazione / Schiusa.</b> Quando previste, restano separate dalla normale Produzione.',
+        '<b>Raccolti prioritari.</b> Alla fine dei Cicli compaiono gli Ingredienti ancora da risolvere.',
+        '<b>Trasferimento in Dispensa.</b> Gli Ingredienti delle Creature 🪶 possono essere trasferiti direttamente una volta registrati.',
+        '<b>Storico / Archivio.</b> Mantiene ricostruibili progressi e Creature non più attive.'
+      ],
+      automation:[
+        'Riconosce la fine dei Cicli dai Post.',
+        'Quando la scheda consente di determinare quantità e tipo di Ingredienti, prepara dadi e riepilogo; le eccezioni restano gestite separatamente.',
+        'Può impedire l’avanzamento se un raccolto obbligatorio non è stato ancora registrato.',
+        'Evita il doppio trasferimento dello stesso raccolto alla Dispensa.'
+      ],
+      colors:[
+        '<b>🪶:</b> Ingredienti delle Creature.',
+        '<b>Titolo arancio:</b> identifica le Creature.',
+        '<b>Verde nei riquadri completati:</b> raccolto registrato/passaggio concluso.'
+      ]
+    },
+    'importa':{
+      title:'Importa da Studente',
+      text:'Questa pagina riceve il pacchetto generato dall’Elfo Studente quando il PG diventa Adulto e permette di proseguire senza ricreare manualmente il suo storico.',
+      sections:[
+        '<b>Pacchetto Studente.</b> Incolla qui il testo generato nella pagina «Diventa Adulto → Esporta» del vecchio Elfo.',
+        '<b>Scelta dei contenuti.</b> Il trasferimento può comprendere Mesi/Post, Pozioni, Piante, Creature e Dispensa.',
+        '<b>Conversione nelle strutture adulte.</b> I dati vengono collocati nelle corrispondenti sezioni dell’Elfo Adulto mantenendo i riferimenti utili.',
+        '<b>Storico delle importazioni.</b> L’Elfo conserva traccia dell’operazione per evitare trasferimenti opachi o doppi.'
+      ],
+      automation:[
+        'Verifica il formato del pacchetto prima di applicarlo.',
+        'Mantiene i numeri globali dei Post e i riferimenti necessari alle lavorazioni già iniziate.',
+        'Dopo un’importazione riuscita può comparire un avviso globale che resta visibile finché non scegli «Visualizzato».'
+      ],
+      colors:[
+        '<b>Verde negli avvisi di importazione:</b> importazione riconosciuta e registrata correttamente.',
+        '<b>Giallo:</b> informazione o attività che richiede ancora attenzione prima di essere considerata chiusa.'
+      ]
+    }
   };
   var LOCKED_MIGRATION_PENDING = false;
   var PUBLIC_PG_DIRECTORY = [];
@@ -2768,7 +2990,7 @@
   }
 
 
-  var STRUTTURE = { dispensa:false, laboratorio:false, serra:false, riserva:false };
+  var STRUTTURE = { taccuino:false, dispensa:false, laboratorio:false, serra:false, riserva:false };
 
   var LABORATORI = []; var labCounter = 0; var postazCounter = 0;
   var SERRE = []; var serraCounter = 0; var piantaCounter = 0;
@@ -3299,9 +3521,15 @@
     return !!(fbConnected&&EDIT_UNLOCKED&&TUTORIAL_STATE.pendingVersion===TUTORIAL_VERSION&&TUTORIAL_STATE.completedVersion<TUTORIAL_VERSION&&TUTORIAL_STATE.dismissedVersion<TUTORIAL_VERSION);
   }
   function tutorialPersist(){DATA_DIRTY=true;scheduleSave(0,false);}
-  function tutorialStart(){
+  function tutorialIndexForStep(stepKey,ordered){
+    ordered=ordered||navVisibleSteps();
+    for(var i=0;i<ordered.length;i++){if(ordered[i]&&ordered[i].key===stepKey){return i;}}
+    return -1;
+  }
+  function tutorialStart(stepKey){
     if(!fbConnected){return;}
-    TUTORIAL_RUNTIME.active=true;TUTORIAL_RUNTIME.index=0;
+    var ordered=navVisibleSteps(),idx=tutorialIndexForStep(stepKey||currentStep,ordered);
+    TUTORIAL_RUNTIME.active=true;TUTORIAL_RUNTIME.index=idx>=0?idx:0;
     TUTORIAL_STATE.dismissedVersion=Math.max(TUTORIAL_STATE.dismissedVersion,TUTORIAL_VERSION);
     TUTORIAL_STATE.pendingVersion=0;tutorialPersist();renderAll();
     setTimeout(function(){var t=document.querySelector('.step-btn.tutorial-target');if(t&&t.scrollIntoView){t.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});}},0);
@@ -3314,15 +3542,33 @@
     tutorialPersist();renderAll();
   }
   function tutorialMove(delta){
-    var ordered=navOrderedSteps();if(!ordered.length){tutorialClose(false);return;}
-    TUTORIAL_RUNTIME.index=Math.max(0,Math.min(ordered.length-1,TUTORIAL_RUNTIME.index+delta));renderAll();
-    setTimeout(function(){var t=document.querySelector('.step-btn.tutorial-target');if(t&&t.scrollIntoView){t.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});}},0);
+    var ordered=navVisibleSteps();if(!ordered.length){tutorialClose(false);return;}
+    var base=tutorialIndexForStep(currentStep,ordered);if(base<0){base=TUTORIAL_RUNTIME.index||0;}
+    var idx=Math.max(0,Math.min(ordered.length-1,base+delta));
+    TUTORIAL_RUNTIME.index=idx;currentStep=ordered[idx].key;renderAll();
+    setTimeout(function(){window.scrollTo({top:0,behavior:'smooth'});var t=document.querySelector('.step-btn.tutorial-target');if(t&&t.scrollIntoView){t.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});}},0);
   }
   function tutorialLauncherSync(){
     var b=document.getElementById('tutorialLaunch');if(!b){return;}
     b.style.display=fbConnected?'inline-flex':'none';
     b.classList.toggle('tutorial-attention',tutorialNeedsInvite());
-    if(!b.dataset.bound){b.dataset.bound='1';b.addEventListener(EV,function(){tutorialStart();});}
+    if(!b.dataset.bound){b.dataset.bound='1';b.addEventListener(EV,function(){tutorialStart(currentStep);});}
+  }
+  function tutorialAppendGuideGroup(card,title,items,open){
+    if(!Array.isArray(items)||!items.length){return;}
+    var det=el('details','tutorial-guide-group');if(open){det.open=true;}
+    det.appendChild(el('summary',null,title));
+    var ul=el('ul','tutorial-guide-list');
+    for(var i=0;i<items.length;i++){ul.appendChild(el('li',null,items[i]));}
+    det.appendChild(ul);card.appendChild(det);
+  }
+  function tutorialCommonAlerts(){
+    return [
+      '<b>🔔 Riquadro giallo/oro:</b> una o più attività richiedono attenzione. «Vai alla sezione» apre il punto interessato; se quella sezione è disattivata, compare invece «Gestisci sezioni» e l’Elfo ti riporta alla prima pagina per riattivarla.',
+      '<b>Avviso verde in alto:</b> l’Elfo ha ricevuto o importato qualcosa da un’altra funzione/tool. L’avviso resta visibile anche cambiando pagina finché non premi «✓ Visualizzato».',
+      '<b>↶ Annulla / ↷ Ripristina:</b> quando disponibili permettono di recuperare rapidamente una modifica recente senza usare conferme ridondanti.',
+      '<b>Modalità visualizzazione:</b> puoi consultare il PG senza password; i controlli che cambiano dati vengono disabilitati finché non entri in modifica.'
+    ];
   }
   function renderTutorialUi(){
     tutorialLauncherSync();
@@ -3330,27 +3576,32 @@
     var oldTargets=document.querySelectorAll('.step-btn.tutorial-target');for(var oi=0;oi<oldTargets.length;oi++){oldTargets[oi].classList.remove('tutorial-target');}
     if(!fbConnected){TUTORIAL_RUNTIME.active=false;return;}
     if(TUTORIAL_RUNTIME.active){
-      var ordered=navOrderedSteps();if(!ordered.length){TUTORIAL_RUNTIME.active=false;return;}
+      var ordered=navVisibleSteps();if(!ordered.length){TUTORIAL_RUNTIME.active=false;return;}
+      var currentIdx=tutorialIndexForStep(currentStep,ordered);if(currentIdx>=0){TUTORIAL_RUNTIME.index=currentIdx;}
       TUTORIAL_RUNTIME.index=Math.max(0,Math.min(ordered.length-1,TUTORIAL_RUNTIME.index));
       var step=ordered[TUTORIAL_RUNTIME.index],info=TUTORIAL_CONTENT[step.key]||{title:step.label,text:'Questa è una delle sezioni principali dell’Elfo.'};
       var target=document.querySelector('.step-btn[data-nav-key="'+step.key+'"]');if(target){target.classList.add('tutorial-target');}
-      var card=el('div','tutorial-card');
-      card.appendChild(el('div','tutorial-progress','Tutorial · '+(TUTORIAL_RUNTIME.index+1)+'/'+ordered.length));
+      var card=el('div','tutorial-card tutorial-card-deep');
+      card.appendChild(el('div','tutorial-progress','Guida · pagina '+(TUTORIAL_RUNTIME.index+1)+'/'+ordered.length));
       card.appendChild(el('div','tutorial-card-title',info.title));
-      card.appendChild(el('p',null,info.text));
-      if(target&&target.getAttribute('aria-disabled')==='true'){card.appendChild(el('p','tutorial-disabled-note','Questo pulsante è al momento disattivato: puoi attivare la relativa struttura dalla prima sezione dell’Elfo. Il tutorial te lo mostra comunque così sai già dove trovarlo.'));}
+      card.appendChild(el('p','tutorial-intro',info.text));
+      if(target&&target.getAttribute('aria-disabled')==='true'){card.appendChild(el('p','tutorial-disabled-note','Questa pagina è al momento disattivata: puoi attivare la relativa struttura dalla prima sezione dell’Elfo. La guida resta comunque disponibile per mostrarti in anticipo cosa troverai.'));}
+      tutorialAppendGuideGroup(card,'Cosa trovi in questa pagina',info.sections,true);
+      tutorialAppendGuideGroup(card,'Cosa può fare automaticamente l’Elfo',info.automation,false);
+      tutorialAppendGuideGroup(card,'Colori, simboli e stati',info.colors,false);
+      tutorialAppendGuideGroup(card,'Avvisi e funzioni comuni a tutto l’Elfo',tutorialCommonAlerts(),false);
       var actions=el('div','tutorial-actions');
-      var prev=el('button','action ghost small','← Indietro');prev.type='button';prev.disabled=TUTORIAL_RUNTIME.index===0;prev.addEventListener(EV,function(){tutorialMove(-1);});actions.appendChild(prev);
-      var nextLabel=TUTORIAL_RUNTIME.index===ordered.length-1?'✓ Fine tutorial':'Avanti →';
+      var prev=el('button','action ghost small','← Pagina precedente');prev.type='button';prev.disabled=TUTORIAL_RUNTIME.index===0;prev.addEventListener(EV,function(){tutorialMove(-1);});actions.appendChild(prev);
+      var nextLabel=TUTORIAL_RUNTIME.index===ordered.length-1?'✓ Fine guida':'Pagina successiva →';
       var next=el('button','action small',nextLabel);next.type='button';next.addEventListener(EV,function(){if(TUTORIAL_RUNTIME.index===ordered.length-1){tutorialClose(true);}else{tutorialMove(1);}});actions.appendChild(next);
       var exit=el('button','action ghost small','Chiudi');exit.type='button';exit.addEventListener(EV,function(){tutorialClose(false);});actions.appendChild(exit);
       card.appendChild(actions);host.appendChild(card);return;
     }
     if(tutorialNeedsInvite()){
       var invite=el('div','tutorial-invite');invite.appendChild(el('strong',null,'✨ Prima volta nell’Elfo?'));
-      invite.appendChild(el('p',null,'Posso mostrarti rapidamente a cosa serve ogni pulsante principale. Il tour è breve, non modifica nulla e potrai riaprirlo in qualsiasi momento da «❔ Guida».'));
+      invite.appendChild(el('p',null,'Posso mostrarti come funziona la pagina che stai guardando, cosa fanno i suoi blocchi, quali automatismi può gestire l’Elfo e il significato dei principali colori e avvisi. Potrai spostarti poi fra le altre pagine o riaprire la guida in qualsiasi momento da «❔ Guida».'));
       var ia=el('div','tutorial-actions');
-      var start=el('button','action small','Inizia il tutorial');start.type='button';start.addEventListener(EV,function(){tutorialStart();});ia.appendChild(start);
+      var start=el('button','action small','Apri la guida di questa pagina');start.type='button';start.addEventListener(EV,function(){tutorialStart(currentStep);});ia.appendChild(start);
       var later=el('button','action ghost small','Più tardi');later.type='button';later.addEventListener(EV,function(){TUTORIAL_STATE.dismissedVersion=Math.max(TUTORIAL_STATE.dismissedVersion,TUTORIAL_VERSION);TUTORIAL_STATE.pendingVersion=0;tutorialPersist();renderAll();});ia.appendChild(later);
       invite.appendChild(ia);host.appendChild(invite);
     }
@@ -3359,11 +3610,8 @@
     if(!fbConnected||!container){return;}
     var info=TUTORIAL_CONTENT[currentStep];if(!info){return;}
     var heading=container.querySelector('.panel h2');if(!heading||heading.querySelector('.context-help-btn')){return;}
-    var b=el('button','action ghost small context-help-btn','?');b.type='button';b.classList.add('elfo-readonly-safe');b.title='Che cosa posso fare in questa sezione?';
-    b.addEventListener(EV,function(){
-      var existing=heading.parentNode.querySelector('.context-help-box');if(existing){existing.remove();return;}
-      var box=el('div','context-help-box','<b>'+info.title+'</b><br>'+info.text);heading.insertAdjacentElement('afterend',box);
-    });
+    var b=el('button','action ghost small context-help-btn','?');b.type='button';b.classList.add('elfo-readonly-safe');b.title='Apri la guida approfondita di questa pagina';
+    b.addEventListener(EV,function(){tutorialStart(currentStep);});
     heading.appendChild(b);
   }
 
@@ -3391,6 +3639,28 @@
     var keys=navLoadOrder(),byKey={};
     for(var i=0;i<STEPS.length;i++){byKey[STEPS[i].key]=STEPS[i];}
     return keys.map(function(k){return byKey[k];}).filter(Boolean);
+  }
+  function isStepVisibleInNav(step){
+    if(!step){ return false; }
+    if(step.key === "taccuino" && !STRUTTURE.taccuino){ return false; }
+    if(step.key === "dispensa" && !STRUTTURE.dispensa){ return false; }
+    if(step.key === "laboratorio" && !STRUTTURE.laboratorio){ return false; }
+    if(step.key === "serra" && !STRUTTURE.serra){ return false; }
+    if(step.key === "riserva" && !STRUTTURE.riserva){ return false; }
+    return true;
+  }
+  function navVisibleSteps(){ return navOrderedSteps().filter(isStepVisibleInNav); }
+  function navStepByKey(key){
+    key=String(key||"");
+    for(var i=0;i<STEPS.length;i++){if(STEPS[i]&&STEPS[i].key===key){return STEPS[i];}}
+    return null;
+  }
+  function navCanOpenStepKey(key){var step=navStepByKey(key);return !!(step&&isStepVisibleInNav(step));}
+  function navResolvedTargetKey(key){return navCanOpenStepKey(key)?String(key):NAV_FIXED_KEY;}
+  function ensureCurrentStepVisible(){
+    var step=navStepByKey(currentStep);
+    if(step&&!isStepVisibleInNav(step)){currentStep=NAV_FIXED_KEY;return false;}
+    return true;
   }
   function navNumberForIndex(index){return NAV_NUMBER_START+index;}
   function navLabel(step,index){return navNumberForIndex(index)+". "+step.label;}
@@ -3454,7 +3724,7 @@
   function renderNav(){
     var nav = document.getElementById("stepsNav");
     nav.innerHTML = "";
-    var ordered=navOrderedSteps();
+    var ordered=navVisibleSteps();
     for(var i=0;i<ordered.length;i++){
       (function(s,index){
         var isDisabled = false;
@@ -3482,6 +3752,7 @@
   function isStepEnabledForPageNav(step){
     if(!step){ return false; }
     if(!fbConnected && step.key !== "connessione"){ return false; }
+    if(!isStepVisibleInNav(step)){ return false; }
     if(step.key === "dispensa" && !STRUTTURE.dispensa){ return false; }
     if(step.key === "laboratorio" && !STRUTTURE.laboratorio){ return false; }
     if(step.key === "serra" && !STRUTTURE.serra){ return false; }
@@ -3489,7 +3760,7 @@
     return true;
   }
   function appendPageNavigation(container){
-    var ordered=navOrderedSteps();
+    var ordered=navVisibleSteps();
     var enabled = ordered.filter(isStepEnabledForPageNav);
     var idx = -1;
     for(var i=0;i<enabled.length;i++){ if(enabled[i].key === currentStep){ idx = i; break; } }
@@ -3699,7 +3970,7 @@
     };
 
     var merged=cloneHistoryState(snapshot);
-    merged._schemaVersion=27;
+    merged._schemaVersion=28;
     merged._dbRevision=keep.dbRevision;
     merged._pgName=String(PG_ID||"");
     merged._lastModifiedAt=keep.lastModifiedAt;
@@ -3798,7 +4069,7 @@
   function resetDataState(){
     ELFO_IDENTITY = { elfoNome:"Dobby", elfoAppellativo:"Padron", nomeChiamata:"", titoloPersonalizzato:false };
     POSTS = []; MESI = []; meseCounter = 0; postCounter = 0; globalPostCounter = 0; ARCHIVIO_DB = { periodiche:[], ultima:null };
-    STRUTTURE = { dispensa:false, laboratorio:false, serra:false, riserva:false };
+    STRUTTURE = { taccuino:false, dispensa:false, laboratorio:false, serra:false, riserva:false };
     LABORATORI = []; labCounter = 0; postazCounter = 0;
     SERRE = []; serraCounter = 0; piantaCounter = 0;
     RISERVE = []; riservaCounter = 0; creaturaCounter = 0; medichCounter = 0; IMPORT_HISTORY = []; EXTERNAL_IMPORT_NOTICE = null;
@@ -3811,7 +4082,7 @@
 
   function collectState(){
     return {
-      _schemaVersion: 27, _dbRevision: DB_REVISION, _pgName: PG_ID, _editPasswordConfigured: EDIT_PASSWORD_CONFIGURED, _lastModifiedAt: LAST_MODIFIED_AT, _lastModifiedBy: LAST_MODIFIED_BY,
+      _schemaVersion: 28, _dbRevision: DB_REVISION, _pgName: PG_ID, _editPasswordConfigured: EDIT_PASSWORD_CONFIGURED, _lastModifiedAt: LAST_MODIFIED_AT, _lastModifiedBy: LAST_MODIFIED_BY,
       RICHIESTA_ELIMINAZIONE: DELETE_REQUESTED,
       _tutorialState: tutorialNormalizeState(TUTORIAL_STATE),
       ELFO_IDENTITY: ELFO_IDENTITY,
@@ -3866,6 +4137,7 @@
     if(data.VERIFICHE_PARAMETRI_SOCIALI && typeof data.VERIFICHE_PARAMETRI_SOCIALI === "object"){ VERIFICHE_PARAMETRI_SOCIALI = data.VERIFICHE_PARAMETRI_SOCIALI; }
     if(data.SOCIAL_SYNC_META && typeof data.SOCIAL_SYNC_META === "object"){ SOCIAL_SYNC_META = data.SOCIAL_SYNC_META; }
     if(data.STRUTTURE){ STRUTTURE = data.STRUTTURE; }
+    if(typeof STRUTTURE.taccuino === "undefined"){ STRUTTURE.taccuino = true; DATA_DIRTY=true; }
     if(typeof STRUTTURE.dispensa === "undefined"){ STRUTTURE.dispensa = false; }
     if(data.DISPENSA){ DISPENSA = data.DISPENSA; }
     if(data._dispensaBatchDraft && typeof data._dispensaBatchDraft === "object"){
@@ -4021,7 +4293,7 @@
          versione certificata e le Security Rules possono verificarne l'integrità. */
       snapPromise=window.fbLoadState(PG_ID).then(function(remoteBefore){
         if(!remoteBefore){ return true; }
-        return window.fbCreateSnapshot(PG_ID,{state:remoteBefore,reason:reason,sessionId:SESSION_ID,sizeBytes:stateSizeBytes(remoteBefore),schemaVersion:27});
+        return window.fbCreateSnapshot(PG_ID,{state:remoteBefore,reason:reason,sessionId:SESSION_ID,sizeBytes:stateSizeBytes(remoteBefore),schemaVersion:28});
       });
     }
     var auditEvent=null, auditTarget=cloneHistoryState(auditComparable);
@@ -4503,10 +4775,10 @@
 
       var currentBytes=stateSizeBytes(collectState());if(currentBytes>700000){p.appendChild(el("p","save-size-warning","⚠ Salvataggio già piuttosto grande: "+sizeLabel(currentBytes)+". Conviene chiedere al Narratore una pulizia periodica dell’archivio."));}
       if(EDIT_UNLOCKED){p.appendChild(buildSocialValuesEditor());}else{p.appendChild(el("div","elfo-readonly-note","🔒 <b>Parametri Sociali privati</b> — Popolarità, Prestigio, Punti Virtuosi e Punti Sinistri sono visibili soltanto al proprietario dopo aver inserito la password di modifica."));}
-      p.appendChild(el("h4",null,"Strutture possedute"));
-      p.appendChild(el("p","small-note","Questa impostazione si modifica solo quando acquisti o perdi una struttura. Seleziona ciò che il PG possiede: le relative sezioni si attiveranno nel menu in alto."));
-      var struttRow=el("div","row"),struttOpts=[{key:"dispensa",label:"Dispensa degli Ingredienti"},{key:"laboratorio",label:"Laboratorio di Pozioni"},{key:"serra",label:"Serra"},{key:"riserva",label:"Riserva"}];
-      for(var so=0;so<struttOpts.length;so++){(function(o){var w=el("div","chk-line"),box=el("input");box.type="checkbox";box.checked=STRUTTURE[o.key];box.addEventListener("change",function(){STRUTTURE[o.key]=box.checked;renderAll();});w.appendChild(box);w.appendChild(el("span",null,o.label));struttRow.appendChild(w);})(struttOpts[so]);}
+      p.appendChild(el("h4",null,"Sezioni e strutture disponibili"));
+      p.appendChild(el("p","small-note","Seleziona soltanto ciò che vuoi usare: le sezioni opzionali compariranno nella barra in alto. Se le deselezioni spariranno dal menu senza perdere i dati già salvati; riattivandole torneranno nella posizione che avevano e potrai sempre trascinarle dove preferisci."));
+      var struttRow=el("div","row"),struttOpts=[{key:"taccuino",label:"Taccuino personale"},{key:"dispensa",label:"Dispensa degli Ingredienti"},{key:"laboratorio",label:"Laboratorio di Pozioni"},{key:"serra",label:"Serra"},{key:"riserva",label:"Riserva"}];
+      for(var so=0;so<struttOpts.length;so++){(function(o){var w=el("div","chk-line"),box=el("input");box.type="checkbox";box.checked=STRUTTURE[o.key];box.addEventListener("change",function(){STRUTTURE[o.key]=box.checked;DATA_DIRTY=true;scheduleSave(0,false);renderAll();});w.appendChild(box);w.appendChild(el("span",null,o.label));struttRow.appendChild(w);})(struttOpts[so]);}
       p.appendChild(struttRow);
       var change=el("button","action elfo-readonly-safe","Cambia Elfo");change.type="button";change.addEventListener(EV,function(){changeCurrentPg(change);});p.appendChild(change);
       if(EDIT_UNLOCKED){
@@ -4520,7 +4792,7 @@
 
 
   /* ==================================================== */
-  /* TACCUINO PERSONALE — LOCALSTORAGE, NON FIREBASE      */
+  /* TACCUINO PERSONALE — locale + backup cloud separato  */
   /* ==================================================== */
   var TACC_MODE = "adulto";
   var TACC_STORAGE_BASE_KEY = "felix_taccuino_personale_v1";
@@ -4541,12 +4813,13 @@
   var TACC_CLOUD_ERROR = false;
   var TACC_CLOUD_LOGIN_PG = "";
   var TACC_CLOUD_MAX_BYTES = 780000;
+  var TACC_LEGACY_IMPORT_MESSAGE = "";
 
   function taccId(prefix){ return String(prefix||"x")+"_"+Date.now().toString(36)+"_"+Math.random().toString(36).slice(2,8); }
   function taccToday(){ var d=new Date(),m=String(d.getMonth()+1).padStart(2,"0"),g=String(d.getDate()).padStart(2,"0"); return d.getFullYear()+"-"+m+"-"+g; }
   function taccDefault(){
     return {
-      version:6,
+      version:7,
       roles:[],
       healings:[],
       activityState:{},
@@ -4559,13 +4832,14 @@
       links:[],
       media:[],
       notes:"",
+      legacyImports:[],
       meta:{createdAt:new Date().toISOString(),updatedAt:null}
     };
   }
   function taccNum(v){ v=Number(v); return Number.isFinite(v)&&v>=0?v:0; }
   function taccNormalize(raw){
     var d=taccDefault(); raw=(raw&&typeof raw==="object")?raw:{};
-    d.version=6;
+    d.version=7;
     d.roles=Array.isArray(raw.roles)?raw.roles:[];
     d.healings=Array.isArray(raw.healings)?raw.healings:[];
     d.healings=d.healings.filter(function(h){return h&&typeof h==="object";}).map(function(h){
@@ -4594,6 +4868,7 @@
     d.links=Array.isArray(raw.links)?raw.links:[];
     d.media=Array.isArray(raw.media)?raw.media:[];
     d.notes=String(raw.notes||"");
+    d.legacyImports=Array.isArray(raw.legacyImports)?raw.legacyImports.filter(function(x){return x&&typeof x==="object";}):[];
     d.meta=(raw.meta&&typeof raw.meta==="object")?raw.meta:d.meta;
     if(!d.meta.createdAt){d.meta.createdAt=new Date().toISOString();}
     return d;
@@ -5023,7 +5298,14 @@
   function buildActivityAckControl(id){var lab=el("label","activity-ack"),cb=document.createElement("input");cb.type="checkbox";cb.checked=activityAcked(id);cb.addEventListener("change",function(){activitySetAck(id,cb.checked);renderAll();});lab.appendChild(cb);lab.appendChild(document.createTextNode("Presa visione"));return lab;}
   function buildGlobalActivityAlerts(){
     if(!EDIT_UNLOCKED){return null;}var items=activityRefreshState().filter(function(it){return !activityAcked(it.id);});if(!items.length){return null;}
-    var box=el("div","global-activity-alerts");box.appendChild(el("strong",null,"🔔 "+items.length+(items.length===1?" attività richiede":" attività richiedono")+" la tua attenzione"));items.forEach(function(it){var row=el("div","global-activity-alert-row");row.appendChild(el("span",null,it.label));var b=el("button","action small","Vai alla sezione");b.type="button";b.addEventListener(EV,function(){currentStep=it.step;renderAll();});row.appendChild(b);box.appendChild(row);});return box;
+    var box=el("div","global-activity-alerts");box.appendChild(el("strong",null,"🔔 "+items.length+(items.length===1?" attività richiede":" attività richiedono")+" la tua attenzione"));items.forEach(function(it){
+      var row=el("div","global-activity-alert-row");row.appendChild(el("span",null,it.label));
+      var targetVisible=navCanOpenStepKey(it.step);
+      var b=el("button","action small",targetVisible?"Vai alla sezione":"Gestisci sezioni");b.type="button";
+      b.title=targetVisible?"Apri la sezione interessata":"La sezione interessata è nascosta: apri le Strutture per riattivarla";
+      b.addEventListener(EV,function(){currentStep=navResolvedTargetKey(it.step);renderAll();});
+      row.appendChild(b);box.appendChild(row);
+    });return box;
   }
 
   function taccCurrentPgName(){
@@ -5045,6 +5327,7 @@
     if(Array.isArray(data.relations)&&data.relations.length){return true;}
     if(Array.isArray(data.links)&&data.links.length){return true;}
     if(Array.isArray(data.media)&&data.media.length){return true;}
+    if(Array.isArray(data.legacyImports)&&data.legacyImports.length){return true;}
     if(String(data.notes||"").trim()){return true;}
     var ms=data.missions&&typeof data.missions==="object"?data.missions:{};
     return Object.keys(ms).some(function(k){
@@ -5507,6 +5790,137 @@
     var active=defs.filter(function(d){return taccMissionState(d.id).active;});if(!active.length){container.appendChild(el("div","tacc-empty","Nessuna Missione attualmente tenuta d'occhio."));return;}active.forEach(function(d){renderTaccMissionCard(container,d);});
   }
 
+
+  /* ==================================================== */
+  /* IMPORTAZIONE VECCHIO TACCUINO — merge non distruttivo */
+  /* ==================================================== */
+  function taccLegacyHash(text){
+    text=String(text||"");var h=2166136261;
+    for(var i=0;i<text.length;i++){h^=text.charCodeAt(i);h+=(h<<1)+(h<<4)+(h<<7)+(h<<8)+(h<<24);}
+    return (h>>>0).toString(16)+"_"+text.length;
+  }
+  function taccLegacyDecodeHtml(s){
+    try{var ta=document.createElement("textarea");ta.innerHTML=String(s||"");return ta.value;}catch(e){return String(s||"");}
+  }
+  function taccLegacyPlain(s){
+    s=String(s||"");
+    s=s.replace(/\[URL=([^\]]+)\]([\s\S]*?)\[\/URL\]/gi,"$2").replace(/\[URL\]([\s\S]*?)\[\/URL\]/gi,"$1");
+    s=s.replace(/<a\b[^>]*>([\s\S]*?)<\/a>/gi,"$1");
+    s=s.replace(/\[IMG(?:=[^\]]*)?\][\s\S]*?\[\/IMG\]/gi," ").replace(/<img\b[^>]*>/gi," ");
+    s=s.replace(/<i\b[^>]*><\/i>/gi," ").replace(/<[^>]+>/g," ");
+    s=s.replace(/\[(?:\/?(?:size|font|color|b|i|u|del|quote|center|left|right|align|code)|hr|br)(?:=[^\]]*)?\]/gi," ");
+    s=taccLegacyDecodeHtml(s).replace(/\s+/g," ").trim();return s;
+  }
+  function taccLegacySections(raw){
+    raw=String(raw||"");var re=/<div\b[^>]*data-label\s*=\s*["']([^"']+)["'][^>]*>/gi,m,starts=[];
+    while((m=re.exec(raw))){starts.push({label:taccLegacyPlain(m[1]),start:m.index});}
+    if(!starts.length){return [{label:"Taccuino importato",raw:raw}];}
+    return starts.map(function(x,idx){return {label:x.label||("Sezione "+(idx+1)),raw:raw.slice(x.start,idx+1<starts.length?starts[idx+1].start:raw.length)};});
+  }
+  function taccLegacyUrlKey(url){
+    var u=taccLegacyDecodeHtml(String(url||"").trim()).replace(/^https?:\/\/felixfelicisharrypottergdr\.forumfree\.it\/?/i,"").replace(/^https?:\/\/felixfelicisharrypottergdr-jpg\.github\.io\/?/i,"");
+    return u.replace(/^\//,"").toLowerCase();
+  }
+  function taccLegacyLinks(line){
+    line=String(line||"");var out=[],re=/\[URL=([^\]]+)\]([\s\S]*?)\[\/URL\]/gi,m;
+    while((m=re.exec(line))){out.push({url:taccLegacyDecodeHtml(m[1]).trim(),label:taccLegacyPlain(m[2])});}
+    var ar=/<a\b[^>]*href\s*=\s*["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+    while((m=ar.exec(line))){out.push({url:taccLegacyDecodeHtml(m[1]).trim(),label:taccLegacyPlain(m[2])});}
+    return out;
+  }
+  function taccLegacyRoleType(line,sectionRaw){
+    var l=String(line||"").toLowerCase(),head=String(sectionRaw||"").slice(0,1800).toLowerCase();
+    if(/fa-eye-slash/.test(l)){return "limitato";}if(/fa-eye\b/.test(l)){return "indiscrete";}if(/fa-book\b/.test(l)){return "ripetizioni";}if(/fa-magnifying-glass/.test(l)){return "trama";}if(/fa-chess-knight|fa-dice/.test(l)){return "quest";}
+    if(/fa-users|fa-people-group/.test(l)){if(/masterate/.test(head)){return "masterata";}if(/eventi/.test(head)){return "evento";}return "gruppo";}
+    if(/fa-comment-dots|fa-comment\b/.test(l)){return "free";}return "altro";
+  }
+  function taccLegacyCategoryFromLine(line){
+    var p=taccLegacyPlain(line),m=p.match(/\b((?:IV|V|VI|VII)\s+anno)\b/i);if(m){return m[1].replace(/^iv\b/i,"IV").replace(/^vii\b/i,"VII").replace(/^vi\b/i,"VI").replace(/^v\b/i,"V").replace(/anno/i,"anno");}
+    if(/vita\s+adulta/i.test(p)){return "Vita adulta";}return "";
+  }
+  function taccLegacyPeriodFromLine(line){
+    var raw=String(line||""),p=taccLegacyPlain(raw);if(!p){return "";}
+    var m=p.match(/\b(Gennaio|Febbraio|Marzo|Aprile|Maggio|Giugno|Luglio|Agosto|Settembre|Ottobre|Novembre|Dicembre)(?:\s*\/\s*(?:Gennaio|Febbraio|Marzo|Aprile|Maggio|Giugno|Luglio|Agosto|Settembre|Ottobre|Novembre|Dicembre))?\s+\d{4}\b/i);if(m){return m[0];}
+    m=p.match(/\b20\d{2}\.\d{2}\b/);if(m){return m[0];}
+    m=p.match(/\bEstate(?:\s+20\d{2})?\b/i);if(m){return m[0];}
+    if(/fa-calendar(?:-days)?/.test(raw)&&!taccLegacyLinks(raw).length){return p.replace(/^\d+\s*/,"").trim();}
+    return "";
+  }
+  function taccLegacyLocation(line){
+    line=String(line||"");var parts=line.split(/fa-location-dot[^>]*><\/i>/i);if(parts.length>1){var loc=taccLegacyPlain(parts[parts.length-1]);loc=loc.replace(/^[|·,\s]+/,"").trim();if(loc){return loc;}}
+    var p=taccLegacyPlain(line),m=p.match(/\(@([^,\)]+)(?:,\s*20\d{2}\.\d{2})?\)/);return m?m[1].trim():"";
+  }
+  function taccLegacyOpenInlinePeriod(line){var p=taccLegacyPlain(line),m=p.match(/\(@[^,\)]+,\s*(20\d{2}\.\d{2})\)/);return m?m[1]:"";}
+  function taccLegacyWithWhom(line){
+    var s=String(line||""),locPos=s.search(/<i\b[^>]*fa-location-dot/i);if(locPos>=0){s=s.slice(0,locPos);}var all=taccLegacyLinks(s);if(!all.length){return "";}
+    var lastClose=s.toLowerCase().lastIndexOf("[/url]");if(lastClose<0){lastClose=s.toLowerCase().lastIndexOf("</a>");if(lastClose>=0){lastClose+=4;}}else{lastClose+=6;}
+    if(lastClose<0){return "";}var tail=taccLegacyPlain(s.slice(lastClose));tail=tail.replace(/^\s*[|!·,:-]+\s*/,"").replace(/\(@[^\)]*\)/g,"").trim();return tail;
+  }
+  function taccLegacyAddCategory(cat){cat=String(cat||"").trim();if(!cat){return "Altro";}if(!TACCUINO.categories.some(function(x){return String(x).toLowerCase()===cat.toLowerCase();})){TACCUINO.categories.push(cat);}return TACCUINO.categories.find(function(x){return String(x).toLowerCase()===cat.toLowerCase();})||cat;}
+  function taccLegacyRoleExists(role){
+    var uk=taccLegacyUrlKey(role.url);return TACCUINO.roles.some(function(r){if(uk&&taccLegacyUrlKey(r&&r.url)===uk){return true;}return !uk&&!String(r&&r.url||"").trim()&&String(r&&r.title||"").trim().toLowerCase()===String(role.title||"").trim().toLowerCase()&&String(r&&r.period||"").trim().toLowerCase()===String(role.period||"").trim().toLowerCase()&&String(r&&r.category||"").trim().toLowerCase()===String(role.category||"").trim().toLowerCase();});
+  }
+  function taccLegacyParseRoles(section,isOpen,stats){
+    var lines=String(section.raw||"").split(/\r?\n/),category=isOpen?"Altro":"Altro",period="";
+    for(var i=0;i<lines.length;i++){
+      var line=lines[i],cat=taccLegacyCategoryFromLine(line);if(cat){category=taccLegacyAddCategory(cat);continue;}
+      var per=taccLegacyPeriodFromLine(line);if(per){period=per;continue;}
+      var links=taccLegacyLinks(line);if(!links.length){continue;}
+      var type=taccLegacyRoleType(line,section.raw);if(type==="altro"&&!/fa-(?:comment|dice|users|people-group|eye|book|magnifying|chess)/i.test(line)){continue;}
+      var meaningful=links.filter(function(x){return x.label&&!/^(?:x|\d+)$/i.test(x.label);});if(!meaningful.length){continue;}
+      var title=meaningful.map(function(x){return x.label;}).join(" ").replace(/\s+/g," ").trim();if(!title){continue;}
+      var inlinePer=taccLegacyOpenInlinePeriod(line),role={id:taccId("role"),title:title,url:links[0].url||"",withWhom:taccLegacyWithWhom(line),category:taccLegacyAddCategory(isOpen?"Altro":category),roleType:type,period:inlinePer||period||"",location:taccLegacyLocation(line),notes:"",openedAt:"",closedAt:isOpen?"":taccToday(),status:isOpen?"open":"closed",legacyImported:true,_legacyRaw:line};
+      if(taccLegacyRoleExists(role)){stats.duplicates++;continue;}TACCUINO.roles.push(role);stats.roles++;
+    }
+  }
+  function taccLegacyParsePng(section,stats){
+    var raw=String(section.raw||""),re=/\[color=([^\]]+)\]([\s\S]*?)\[\/color\]/gi,m;
+    while((m=re.exec(raw))){var plain=taccLegacyPlain(m[2]),parts=plain.split("|");if(parts.length<2){continue;}var name=String(parts[parts.length-1]||"").trim();if(!name){continue;}var color=String(m[1]||"").trim();if(TACCUINO.png.some(function(x){return String(x&&x.name||"").trim().toLowerCase()===name.toLowerCase();})){stats.duplicates++;continue;}TACCUINO.png.push({id:taccId("png"),name:name,sheetUrl:"",color:color,notes:"Importato dal vecchio Taccuino",roles:[]});stats.png++;}
+  }
+  function taccLegacyParseMedia(section,stats){
+    var raw=String(section.raw||""),urls=[],m,re=/\[IMG(?:=[^\]]*)?\](https?:\/\/[^\[]+)\[\/IMG\]/gi;while((m=re.exec(raw))){urls.push(m[1].trim());}
+    re=/<img\b[^>]*src\s*=\s*["']([^"']+)["'][^>]*>/gi;while((m=re.exec(raw))){urls.push(taccLegacyDecodeHtml(m[1]).trim());}
+    urls.forEach(function(u){if(!u||TACCUINO.media.some(function(x){return taccLegacyUrlKey(x&&x.url)===taccLegacyUrlKey(u);})){stats.duplicates++;return;}TACCUINO.media.push({id:taccId("media"),label:section.label||"Banner / Medaglia",url:u});stats.media++;});
+  }
+  function taccLegacyParsePersonalLinks(section,stats){
+    String(section.raw||"").split(/\r?\n/).forEach(function(line){if(!/about|pinterest|scheda\s+png/i.test(taccLegacyPlain(line))){return;}taccLegacyLinks(line).forEach(function(x){if(!x.url||TACCUINO.links.some(function(y){return taccLegacyUrlKey(y&&y.url)===taccLegacyUrlKey(x.url);})){return;}TACCUINO.links.push({id:taccId("link"),label:x.label||"Link personale",url:x.url});stats.links++;});});
+  }
+  function taccLegacyMissionAliases(def){
+    var n=String(def&&def.name||"").replace(/\s*[—-].*$/,"").replace(/\s*\([^\)]*\)\s*$/,"").trim(),a=[n];
+    if(/Gli Amiconi/i.test(n)){a.push("Gli amiconi");}if(/I Compari/i.test(n)){a.push("I compari");}if(/Il Venditore/i.test(n)){a.push("Il venditore");}
+    return a.filter(Boolean);
+  }
+  function taccLegacyAppendMissionNote(state,line){var txt=taccLegacyPlain(line);if(!txt){return;}var marker="[Importato dal vecchio Taccuino] "+txt;var cur=String(state.notes||"");if(cur.indexOf(marker)<0){state.notes=(cur?cur+"\n":"")+marker;}}
+  function taccLegacyMergeRelation(name,links,stats){
+    name=String(name||"").trim();if(!name){return;}var rel=TACCUINO.relations.find(function(x){return String(x&&x.name||"").trim().toLowerCase()===name.toLowerCase();});if(!rel){rel={id:taccId("rel"),name:name,count:0,roles:[],notes:"Importato dal vecchio Taccuino"};TACCUINO.relations.push(rel);stats.relations++;}rel.roles=Array.isArray(rel.roles)?rel.roles:[];
+    links.forEach(function(x,idx){if(!x.url||rel.roles.some(function(r){return taccLegacyUrlKey(r&&r.url)===taccLegacyUrlKey(x.url);})){return;}rel.roles.push({id:taccId("relrole"),label:x.label&&!/^\d+$/.test(x.label)?x.label:("Role "+(rel.roles.length+1)),url:x.url});});
+  }
+  function taccLegacyParseMissions(section,stats){
+    var lines=String(section.raw||"").split(/\r?\n/),defs=taccMissionDefs(),currentRelation=false;
+    for(var i=0;i<lines.length;i++){
+      var line=lines[i],plain=taccLegacyPlain(line),matched=null;
+      defs.some(function(def){return taccLegacyMissionAliases(def).some(function(a){if(a&&plain.toLowerCase().indexOf(a.toLowerCase())>=0){matched=def;return true;}return false;});});
+      if(matched){var st=taccMissionState(matched.id);if(!st.active){st.active=true;stats.missions++;}taccLegacyAppendMissionNote(st,line);currentRelation=matched.kind==="relations";continue;}
+      if(currentRelation){var mm=plain.match(/^[-•]\s*([^\[]+?)\s*\[/);if(mm){taccLegacyMergeRelation(mm[1].trim(),taccLegacyLinks(line),stats);continue;}if(plain&&/\[URL=|fa-(?:check|spinner|bars-progress)/i.test(line)){currentRelation=false;}}
+    }
+  }
+  function taccLegacyAppendNotes(label,raw,stats){
+    var block="===== "+String(label||"Sezione importata")+" — importato dal vecchio Taccuino =====\n"+String(raw||"").trim();if(!block.trim()){return;}if(String(TACCUINO.notes||"").indexOf(block)<0){TACCUINO.notes=(String(TACCUINO.notes||"").trim()?String(TACCUINO.notes||"").trim()+"\n\n":"")+block;stats.notes++;}
+  }
+  function taccLegacyImport(raw){
+    raw=String(raw||"").trim();if(!raw){return {ok:false,error:"Incolla il codice completo del vecchio Taccuino."};}
+    TACCUINO.legacyImports=Array.isArray(TACCUINO.legacyImports)?TACCUINO.legacyImports:[];var hash=taccLegacyHash(raw);if(TACCUINO.legacyImports.some(function(x){return x&&x.hash===hash;})){return {ok:false,error:"Questo identico Taccuino è già stato importato: non ho duplicato nulla."};}
+    var sections=taccLegacySections(raw),stats={roles:0,png:0,media:0,links:0,missions:0,relations:0,notes:0,duplicates:0,sections:sections.length},nameMatch=raw.match(/Taccuino\s+di\s+([^<\[\r\n]+(?:\s+[^<\[\r\n]+)?)/i),legacyName=nameMatch?taccLegacyPlain(nameMatch[1]):"";
+    sections.forEach(function(sec){var lab=String(sec.label||"").toLowerCase();if(/role\s+aperte/.test(lab)){taccLegacyParseRoles(sec,true,stats);taccLegacyParsePersonalLinks(sec,stats);}else if(/cronologia/.test(lab)){taccLegacyParseRoles(sec,false,stats);}if(/png/.test(lab)){taccLegacyParsePng(sec,stats);}if(/banner|medagli/.test(lab)){taccLegacyParseMedia(sec,stats);}if(/fanta|mission/.test(lab)||/fantahogwarts|fantawiz/i.test(sec.raw)){taccLegacyParseMissions(sec,stats);}if(/appunt|note|promemoria/.test(lab)&&!/conti\s+e\s+promemoria/.test(lab)){taccLegacyAppendNotes(sec.label,sec.raw,stats);}});
+    TACCUINO.legacyImports.push({id:taccId("legacy"),hash:hash,importedAt:new Date().toISOString(),name:legacyName||"Vecchio Taccuino",stats:stats,sections:sections.map(function(s){return {label:s.label,raw:s.raw};}),raw:raw});
+    taccSave();return {ok:true,stats:stats,name:legacyName||"Vecchio Taccuino"};
+  }
+  function renderTaccLegacyImport(container){
+    container.appendChild(el("h3",null,"Importazione vecchio Taccuino"));if(TACC_LEGACY_IMPORT_MESSAGE){container.appendChild(el("div","tacc-import-summary ok",TACC_LEGACY_IMPORT_MESSAGE));TACC_LEGACY_IMPORT_MESSAGE="";}var card=el("div","tacc-card tacc-legacy-import");card.appendChild(el("h4",null,"Incolla il Taccuino che usavi sul Forum"));card.appendChild(el("p","small-note","Incolla qui tutto il codice del vecchio Taccuino, dall’inizio alla fine. Non serve ripulirlo o renderlo uguale a quello di altri PG: l’Elfo riconosce le sezioni, aggiunge ciò che sa convertire e conserva integralmente anche ciò che è personalizzato. L’importazione fa sempre MERGE: non sostituisce né cancella ciò che hai già compilato nell’Elfo."));
+    var ta=el("textarea","tacc-legacy-paste");ta.placeholder='<div class="scheda..."><div data-label="Role aperte"> ... incolla qui TUTTO il vecchio Taccuino ...';card.appendChild(ta);var btn=el("button","action","📥 Analizza e importa");btn.type="button";var result=el("div");btn.addEventListener(EV,function(){var r=taccLegacyImport(ta.value);result.innerHTML="";if(!r.ok){result.appendChild(el("div","tacc-import-summary",r.error));return;}var s=r.stats;TACC_LEGACY_IMPORT_MESSAGE="✓ Importazione completata da «"+r.name+"». Aggiunti: "+s.roles+" Role, "+s.png+" PNG, "+s.media+" immagini/banner, "+s.links+" link personali, "+s.missions+" Missioni riconosciute, "+s.relations+" relazioni. Sezioni originali conservate: "+s.sections+". Elementi già presenti e non duplicati: "+s.duplicates+".";ta.value="";renderAll();});card.appendChild(btn);card.appendChild(result);container.appendChild(card);
+    var hist=el("div","tacc-card tacc-import-history");hist.appendChild(el("h4",null,"Importazioni conservate"));hist.appendChild(el("p","small-note","Questa è la rete di sicurezza: il codice originale resta conservato integralmente. Se una personalizzazione non ha un equivalente strutturato nell’Elfo, non viene persa."));var imports=Array.isArray(TACCUINO.legacyImports)?TACCUINO.legacyImports:[];if(!imports.length){hist.appendChild(el("div","tacc-empty","Nessun vecchio Taccuino importato."));}imports.slice().reverse().forEach(function(im){var d=document.createElement("details"),sum=document.createElement("summary"),st=im.stats||{};sum.textContent=(im.name||"Vecchio Taccuino")+" · "+(im.importedAt?new Date(im.importedAt).toLocaleString():"importato")+" · "+(st.sections||0)+" sezioni";d.appendChild(sum);(Array.isArray(im.sections)?im.sections:[]).forEach(function(sec){var sd=document.createElement("details"),ss=document.createElement("summary");ss.textContent=sec.label||"Sezione";sd.appendChild(ss);sd.appendChild(el("div","tacc-legacy-raw",String(sec.raw||"")));d.appendChild(sd);});hist.appendChild(d);});container.appendChild(hist);
+  }
+
   function taccExport(){
     try{var blob=new Blob([JSON.stringify(TACCUINO,null,2)],{type:"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="taccuino-personale-v2-"+taccToday()+".json";document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url);},800);}catch(e){console.error(e);alert("Non sono riuscito a creare il backup del Taccuino.");}
   }
@@ -5533,8 +5947,8 @@
   function renderTaccuinoStep(container){
     var p=el("div","panel");p.appendChild(el("h2",null,"Taccuino Personale"));
     if(TACC_TAB==="guarigione"){TACC_TAB="role";}
-    var tabs=[{k:"role",l:"Role aperte"},{k:"cronologia",l:"Cronologia"},{k:"png",l:"Taccuino PNG"},{k:"missioni",l:TACC_MODE==="studente"?"FantaHogwarts":"FantaWiz"},{k:"extra",l:"Extra"},{k:"note",l:"Appunti & Backup"}],bar=el("div","tacc-tabs");tabs.forEach(function(t){var b=el("button","tacc-tab"+(TACC_TAB===t.k?" active":""),t.l);b.type="button";b.addEventListener(EV,function(){TACC_TAB=t.k;renderAll();});bar.appendChild(b);});p.appendChild(bar);
-    if(TACC_TAB==="role"){renderTaccRole(p);}else if(TACC_TAB==="cronologia"){renderTaccCronologia(p);}else if(TACC_TAB==="png"){renderTaccPng(p);}else if(TACC_TAB==="missioni"){renderTaccMissioni(p);}else if(TACC_TAB==="extra"){renderTaccExtra(p);}else{renderTaccNoteBackup(p);}container.appendChild(p);
+    var tabs=[{k:"role",l:"Role aperte"},{k:"cronologia",l:"Cronologia"},{k:"png",l:"Taccuino PNG"},{k:"missioni",l:TACC_MODE==="studente"?"FantaHogwarts":"FantaWiz"},{k:"extra",l:"Extra"},{k:"import",l:"📥 Importazione"},{k:"note",l:"Appunti & Backup"}],bar=el("div","tacc-tabs");tabs.forEach(function(t){var b=el("button","tacc-tab"+(TACC_TAB===t.k?" active":""),t.l);b.type="button";b.addEventListener(EV,function(){TACC_TAB=t.k;renderAll();});bar.appendChild(b);});p.appendChild(bar);
+    if(TACC_TAB==="role"){renderTaccRole(p);}else if(TACC_TAB==="cronologia"){renderTaccCronologia(p);}else if(TACC_TAB==="png"){renderTaccPng(p);}else if(TACC_TAB==="missioni"){renderTaccMissioni(p);}else if(TACC_TAB==="extra"){renderTaccExtra(p);}else if(TACC_TAB==="import"){renderTaccLegacyImport(p);}else{renderTaccNoteBackup(p);}container.appendChild(p);
   }
   window.addEventListener("storage",function(e){if(e.key===TACC_STORAGE_KEY){TACCUINO=taccLoad();taccScheduleCloudSync();if(currentStep==="taccuino"){renderAll();}}});
   window.addEventListener("online",function(){if(taccCurrentPgName()){taccCloudSyncAfterLogin(taccCurrentPgName());}});
@@ -5587,8 +6001,10 @@
     box.appendChild(el("div","external-import-message",n.message+" L’avviso resta visibile in alto in tutte le sezioni finché non lo segni come visualizzato."));
     var actions=el("div","external-import-actions");
     if(n.step&&n.step!==currentStep){
-      var go=el("button","action small","Vai alla sezione");go.type="button";
-      go.addEventListener(EV,function(){currentStep=n.step;renderAll();window.scrollTo({top:0,behavior:"smooth"});});
+      var targetVisible=navCanOpenStepKey(n.step);
+      var go=el("button","action small",targetVisible?"Vai alla sezione":"Gestisci sezioni");go.type="button";
+      go.title=targetVisible?"Apri la sezione dell’importazione":"La sezione dell’importazione è nascosta: apri le Strutture per riattivarla";
+      go.addEventListener(EV,function(){currentStep=navResolvedTargetKey(n.step);renderAll();window.scrollTo({top:0,behavior:"smooth"});});
       actions.appendChild(go);
     }
     var ack=el("button","action ghost small","✓ Visualizzato");ack.type="button";
@@ -5604,6 +6020,7 @@
   }
 
   function renderAll(){
+    ensureCurrentStepVisible();
     recomputePosts();
     updateElfoIdentityHeader();
     applyTheme();
@@ -5880,11 +6297,11 @@
             var hpTxt=healingUse.activeProgress.map(function(x){
               return x.index+"/"+x.required+(x.index>=x.required?" · Guarigione completa!":"");
             }).join(" · ");
-            healingBadgeSlot.appendChild(el("span","healing-post-badge"+(healingReachedEnd?" done":""),"❤️ "+hpTxt));
+            var activeHealingBadge=el("span","healing-post-badge"+(healingReachedEnd?" done":""),"❤️ "+hpTxt);activeHealingBadge.title=healingReachedEnd?"Questo Post raggiunge il numero richiesto dalla Guarigione attiva.":"Questo Post sta contando per una Guarigione ancora attiva.";healingBadgeSlot.appendChild(activeHealingBadge);
           }else if(healingUse.completed.length){
             tr.classList.add("healing-post-completed");
             var hcTxt=healingUse.completedProgress.map(function(x){return x.index+"/"+x.required;}).join(" · ");
-            healingBadgeSlot.appendChild(el("span","healing-post-badge done","✓ "+hcTxt));
+            var completedHealingBadge=el("span","healing-post-badge done","✓ "+hcTxt);completedHealingBadge.title="Questo Post è stato conteggiato in una Guarigione già conclusa: è solo uno storico e non richiede alcuna azione.";healingBadgeSlot.appendChild(completedHealingBadge);
           }
         }
         function refreshHealingBadgeSoon(){
