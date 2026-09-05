@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- v133 — Dispensa: importazione massiva resa esplicita nell’interfaccia («Importa Ingredienti»), mantenendo il parser a formato libero, 05/09/2026 -->
 <!-- v132 — Serra: supporto esplicito alla Valigia Magica come struttura per Piante, 05/09/2026 -->
 <!-- v131 — Dispensa formato libero: riconoscimento Ingredienti indipendente da separatori, bullet e impaginazione; quantità opzionale, 05/09/2026 -->
 <!-- v130 — Dispensa tollerante: incolla multi-formato, pulizia HTML/BBCode, alias e fuzzy matching sicuro degli Ingredienti, 05/09/2026 -->
@@ -10620,7 +10621,7 @@
     var bulkDet=el("details","dispensa-block dispensa-paste-section");
     keepDetailsState(bulkDet,"dispensa:bulk",true);
     bulkDet.appendChild(el("summary",null,"<span class=\"dispensa-block-number\">2</span><span class=\"dispensa-block-label\">Aggiungi Ingredienti</span>"));
-    bulkDet.appendChild(el("p","small-note","Incolla gli Ingredienti come preferisci: uno per riga oppure separati da <b>;</b>, trattini, pallini, barre, virgole o altra impaginazione. <b>La formattazione non conta:</b> l’Elfo cerca direttamente i nomi del Glossario dentro il testo e ignora Classificazioni, numerazioni, HTML/BBCode, icone e simboli. La quantità è facoltativa: se manca considera automaticamente <b>1 dose</b>; restano accettate forme come «3 | Nome», «3x Nome», «Nome [3]» o «Nome x3». Se lo stesso Ingrediente compare più volte o è già presente in Dispensa, <b>somma automaticamente le dosi</b>. I nomi ambigui non vengono mai assegnati a caso."));
+    bulkDet.appendChild(el("p","small-note","<b>Importa anche elenchi lunghi in un solo passaggio.</b> Incolla gli Ingredienti come preferisci: uno per riga oppure separati da <b>;</b>, trattini, pallini, barre, virgole o altra impaginazione. <b>La formattazione non conta:</b> l’Elfo cerca direttamente i nomi del Glossario dentro il testo e ignora Classificazioni, numerazioni, HTML/BBCode, icone e simboli. La quantità è facoltativa: se manca considera automaticamente <b>1 dose</b>; restano accettate forme come «3 | Nome», «3x Nome», «Nome [3]» o «Nome x3». Se lo stesso Ingrediente compare più volte o è già presente in Dispensa, <b>somma automaticamente le dosi</b>. I nomi ambigui non vengono mai assegnati a caso."));
 
     var bulkMeta=el("div","row");
     var bulkProvW=el("div");bulkProvW.appendChild(el("label",null,"Come li hai ottenuti?"));
@@ -10653,7 +10654,7 @@
     bulk.addEventListener("input",resizeBulkTextarea);
     bulk.addEventListener("paste",function(){setTimeout(resizeBulkTextarea,0);});
     bulkDet.appendChild(bulk);
-    var bulkBtn=el("button","action small","Aggiungi elenco");
+    var bulkBtn=el("button","action small","Importa Ingredienti");
     bulkBtn.addEventListener(EV,function(){
       var bulkRaw=String(bulk.value||"");
       var fromIngredientGenerator=/(?:FELIX_ELFO_[A-Z_]*INGREDIENT|RISULTATI\s+RACCOLTA\s*:|GENERATORE\s+RICERCA\s+INGREDIENTI)/i.test(bulkRaw);
