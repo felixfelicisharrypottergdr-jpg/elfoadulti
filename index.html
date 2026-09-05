@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- v134 — Camera Blindata compatta: rimossa guida introduttiva e Bonus racchiusi in details chiuso di default, 05/09/2026 -->
 <!-- v133 — Dispensa: importazione massiva resa esplicita nell’interfaccia («Importa Ingredienti»), mantenendo il parser a formato libero, 05/09/2026 -->
 <!-- v132 — Serra: supporto esplicito alla Valigia Magica come struttura per Piante, 05/09/2026 -->
 <!-- v131 — Dispensa formato libero: riconoscimento Ingredienti indipendente da separatori, bullet e impaginazione; quantità opzionale, 05/09/2026 -->
@@ -1833,6 +1834,21 @@
   body.theme-cb .staff-token-live{background:rgba(158,234,0,.06)}
   body.theme-cb .staff-token-live-note,body.theme-cb .staff-token-post-note{color:#4b4b4b}
 
+
+  /* Camera Blindata: Bonus compatti in tendina */
+  details.bonus-details{padding:12px 14px;}
+  details.bonus-details > summary.bonus-details-summary{
+    cursor:pointer;
+    list-style:none;
+    font-weight:800;
+    color:var(--green-dark);
+    user-select:none;
+    margin:-2px 0 0;
+  }
+  details.bonus-details > summary.bonus-details-summary::-webkit-details-marker{display:none;}
+  details.bonus-details > summary.bonus-details-summary::before{content:"▶";display:inline-block;width:1.2em;color:var(--gold);font-size:.8em;}
+  details.bonus-details[open] > summary.bonus-details-summary::before{content:"▼";}
+  details.bonus-details[open] > summary.bonus-details-summary{margin-bottom:10px;}
 </style>
 
 <style id="elfo-v41-harvest-style">
@@ -9603,7 +9619,6 @@
     staffTokenEnsureWatcher();
     var p = el("div", "panel");
     p.appendChild(el("h2", null, "Camera Blindata (Adulto)"));
-    p.appendChild(el("div", "guide-text", "Un blocco per ogni Mese creato allo Step 1. Qui controlli <b>Link, Galeoni, N. globale e Bonus</b>. Se questo PG è associato a uno Staffer ancora attivo, compare anche il comando <b>ST</b>: 1 Staff Token vale +1 PP su quel Post. Se lo Staffer viene segnato come «Non è più Staffer», i tasti spariscono subito; gli ST già usati restano consumati e vengono mostrati soltanto come storico. I Bonus si impostano nel riquadro qui sotto e compaiono automaticamente nella colonna Bonus dei post a cui si applicano. Scala Galeoni: 65-45-30-20-15-10-6-4-3-2, poi 1 G ciascuno."));
 
     if(MESI.length === 0){
       p.appendChild(el("div", "guide-text", "Non hai ancora creato nessun Mese. Torna allo Step 1."));
@@ -9688,8 +9703,9 @@
     }
 
     var bonusLocked = !!(meseObj.chiuso && archiveLocked(meseObj)) || monthIsAccredited(meseObj) || isImportedStudentMonth(meseObj) || (fbConnected && !accreditiVerified());
-    var bonusBox=el("div","card");
-    bonusBox.appendChild(el("h4",null,"🎉 Bonus"));
+    var bonusBox=el("details","card bonus-details");
+    keepDetailsState(bonusBox,"camera-blindata:bonus:"+String(meseObj.id),false);
+    bonusBox.appendChild(el("summary","bonus-details-summary","🎉 Bonus"));
     bonusBox.appendChild(el("p","small-note","Usa questo riquadro per i <b>Bonus che devono comparire in Camera Blindata</b>: Eventi, Premi FT legati ai post e altri bonus analoghi. Per i bonus normali lascia «Tutti i post». Per premi a consumo con valore sempre uguale, come <b>+1 PP per 10 post</b> o <b>+5 G per 10 post</b>, scegli «A utilizzi sui post» e «Fisso». Per <b>+1d3 PP</b> o <b>+1d10 G</b> scegli invece «Variabile per post»: <b>non dovrai creare dieci Bonus diversi</b> e non inserirai alcun valore PP/Galeoni qui sopra; spunterai il Bonus sul singolo post e lì compariranno il campo del risultato e il link del tiro. Prima di poter segnare un utilizzo devi indicare quanti utilizzi risultano già consumati in Scheda PG e il totale previsto dal premio."));
 
     appendBonusEditor(bonusBox,meseObj,primaryBonusItem(meseObj),0,bonusLocked,true);
