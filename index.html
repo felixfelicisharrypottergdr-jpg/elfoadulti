@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- v136 — audit regressioni: Rimuovi/Azzera Bonus senza confirm nativi, 05/09/2026 -->
 <!-- v135 — Camera Blindata: rimosso il comando ridondante “Archivia questo Mese”; resta disponibile in “I tuoi Post”, 05/09/2026 -->
 <!-- v134 — Camera Blindata compatta: rimossa guida introduttiva e Bonus racchiusi in details chiuso di default, 05/09/2026 -->
 <!-- v133 — Dispensa: importazione massiva resa esplicita nell’interfaccia («Importa Ingredienti»), mantenendo il parser a formato libero, 05/09/2026 -->
@@ -9601,7 +9602,7 @@
       var rem=el("button","action danger small","Rimuovi Bonus");rem.type="button";rem.style.marginTop="12px";
       rem.addEventListener(EV,function(){
         if(blockIfMonthReadOnly(mese))return;
-        if(!confirm("Rimuovere questo Bonus?"))return;
+        /* v136 — rimozione immediata, coerente con lo Studente e recuperabile da Annulla. */
         var extras=ensureBonusExtras(mese),id=String(bonus.id);
         for(var i=extras.length-1;i>=0;i--){if(String(extras[i].id)===id)extras.splice(i,1);}
         for(var p=0;p<mese.posts.length;p++){
@@ -9704,8 +9705,7 @@
         var clearBonus=el("button","action danger small","Azzera Bonus");clearBonus.type="button";
         clearBonus.addEventListener(EV,function(){
           if(blockIfMonthReadOnly(meseObj))return;
-          if(!confirm("Azzerare tutti i Bonus di questo Mese?"))return;
-
+          /* v136 — niente confirm nativo nell’iframe: l’azione è recuperabile con Annulla. */
           meseObj.eventoBonusDescrizione="";
           meseObj.eventoBonusPP=0;
           meseObj.eventoBonusGaleoni=0;
