@@ -1,5 +1,7 @@
 
 <!DOCTYPE html>
+<!-- v144 — Taccuino FantaWiz: niente rilettura lazy cloud durante modifiche locali; liste PG/Role aggiornate subito, 07/09/2026 -->
+<!-- v143 — Dispensa: import robusto da BBCode/HTML con URL e quantità interne, plurali italiani, report non bloccante e “Azzera Dispensa”; 07/09/2026 -->
 <!-- v142 — Staff Token: diagnostica aggiornata per Rules v50 e associazioni PG normalizzate, 07/09/2026 -->
 <!-- v141 — ulteriore risparmio letture: ricerca PG restringibile dalla cache, Staff Token solo usi attivi, Taccuino cloud lazy; realtime condiviso preservato; 06/09/2026 -->
 <!-- v140 — ricerca PG a prefisso: nessun elenco completo, suggerimenti dinamici max 10 con debounce/cache; condivisioni incluse; 06/09/2026 -->
@@ -4545,6 +4547,7 @@
   var IMPORT_HISTORY = [];
   var STUDENT_IMPORT_STATE = { sourcePg:"", offset:null, months:false, calderoni:false, piante:false, creature:false, dispensa:false };
   var DISPENSA = { ingredienti:[], movimenti:[], archivioTotali:{ galeoniVendite:0, perCommercianteTipo:{}, conteggiMovimenti:{} } }; var ingredienteCounter = 0; var movimentoCounter = 0;
+  var DISPENSA_IMPORT_REPORT = null;
   var DISPENSA_BATCH = { selected:{}, lotti:{}, tipo:"Usato ONGame in purezza", data:"", link:"", commerciante:"Lo Zoppo", galeoni:0 };
   function resetDispensaBatch(){ DISPENSA_BATCH = { selected:{}, lotti:{}, tipo:"Usato ONGame in purezza", data:"", link:"", commerciante:"Lo Zoppo", galeoni:0 }; }
 
@@ -8926,7 +8929,15 @@
     var globalActivityAlerts=buildGlobalActivityAlerts();if(globalActivityAlerts){c.appendChild(globalActivityAlerts);}
     if(currentStep === "connessione"){ renderConnessioneStep(c); }
     if(currentStep === "posts"){ renderPostsStep(c); }
-    if(currentStep === "taccuino"){ if(typeof taccCloudEnsureLazySync==="function"){setTimeout(taccCloudEnsureLazySync,0);} renderTaccuinoStep(c); }
+    if(currentStep === "taccuino"){
+      /* v144/v146: durante una modifica locale il Taccuino deve ridisegnarsi subito
+         usando lo stato appena salvato. Non rilanciamo una rilettura lazy del cloud
+         finché esistono modifiche/coda locali: la sincronizzazione è già gestita da
+         taccSave() -> taccScheduleCloudSync(), evitando gare tra UI e copia remota. */
+      var _taccLocalPending=(typeof taccPendingLoad==="function")?taccPendingLoad(taccCurrentPgName()):null;
+      if(typeof taccCloudEnsureLazySync==="function" && !TACC_CLOUD_DIRTY && !_taccLocalPending){setTimeout(taccCloudEnsureLazySync,0);}
+      renderTaccuinoStep(c);
+    }
     if(currentStep === "blindata"){ renderBlindataStep(c); }
     if(currentStep === "dispensa"){ renderDispensaStep(c); }
     if(currentStep === "laboratorio"){ renderLaboratorioStep(c); }
@@ -10230,10 +10241,17 @@
   var INGREDIENTI_MAP = {};
   function ingredientCleanRawText(v){
     var s=String(v||"");
-    /* Accetta anche testo copiato da HTML/Forum: togli tag, BBCode e frammenti
-       di icone che possono finire letteralmente negli appunti. */
+    /* Import libero: prima elimina interi frammenti che sono solo formattazione,
+       link o storico grafico. Così le "x" dei link ForumFree non diventano parte
+       del nome dell'Ingrediente e i valori barrati non vengono letti come quantità. */
+    s=s.replace(/\\(?=[<>\[\]])/g,"");
+    s=s.replace(/<del\b[^>]*>[\s\S]*?<\/del>/gi," ");
+    s=s.replace(/<i\b[^>]*>[\s\S]*?<\/i>/gi," ");
+    s=s.replace(/<a\b[^>]*>[\s\S]*?<\/a>/gi," ");
+    s=s.replace(/\[url(?:=[^\]]*)?\][\s\S]*?\[\/url\]/gi," ");
+    s=s.replace(/\[img(?:=[^\]]*)?\][\s\S]*?\[\/img\]/gi," ");
     s=s.replace(/<br\s*\/?>/gi," ").replace(/<[^>]*>/g," ");
-    s=s.replace(/\[(?:\/?(?:b|i|u|color|font|size|url|quote|center|left|right)|img)(?:=[^\]]*)?\]/gi," ");
+    s=s.replace(/\[(?:\/?(?:b|i|u|s|del|color|font|size|url|quote|center|left|right)|img)(?:=[^\]]*)?\]/gi," ");
     s=s.replace(/\(?\s*i\s+class\s*=\s*["'][^"']+["']\s*\/?\s*>?\s*\)?/gi," ");
     s=s.replace(/\bfa-(?:solid|regular|light|thin|duotone|brands|ban|flask-vial|check|circle-check)\b/gi," ");
     s=s.replace(/[🌴🚫⚗✔✅☑️]/g," ");
@@ -10258,7 +10276,9 @@
     ["Petalo di di Orchidea Fantasma","Petalo di Orchidea Fantasma"],
     ["Spina di di Cespuglio Spinoso","Spina di Cespuglio Spinoso"],
     ["Coda di Malacaw Maculato","Coda di Malaclaw Maculato"],
-    ["Coda Malacaw Maculato","Coda di Malaclaw Maculato"]
+    ["Coda Malacaw Maculato","Coda di Malaclaw Maculato"],
+    ["Bezoar intero","Bezoar"],
+    ["Bezoar in polvere","Bezoar"]
   ].forEach(function(pair){
     var canonical=INGREDIENTI_MAP[normalizeIngredientName(pair[1])];
     if(canonical){INGREDIENTI_MAP[normalizeIngredientName(pair[0])]=canonical;}
@@ -10284,20 +10304,42 @@
     return prev[b.length];
   }
 
+
+  function ingredientItalianPluralEquivalent(a,b){
+    a=String(a||"").toLowerCase(); b=String(b||"").toLowerCase();
+    if(a===b){return true;}
+    function forms(s){
+      var out={};out[s]=1;
+      if(s.length<3){return out;}
+      if(/io$/.test(s)){out[s.slice(0,-2)+"i"]=1;}
+      if(/co$/.test(s)){out[s.slice(0,-2)+"chi"]=1;out[s.slice(0,-2)+"ci"]=1;}
+      if(/go$/.test(s)){out[s.slice(0,-2)+"ghi"]=1;out[s.slice(0,-2)+"gi"]=1;}
+      if(/ca$/.test(s)){out[s.slice(0,-2)+"che"]=1;}
+      if(/ga$/.test(s)){out[s.slice(0,-2)+"ghe"]=1;}
+      if(/o$/.test(s)){out[s.slice(0,-1)+"i"]=1;}
+      if(/a$/.test(s)){out[s.slice(0,-1)+"e"]=1;out[s.slice(0,-1)+"i"]=1;}
+      if(/e$/.test(s)){out[s.slice(0,-1)+"i"]=1;}
+      return out;
+    }
+    return !!(forms(a)[b]||forms(b)[a]);
+  }
   function ingredientMorphScore(inputName,officialName){
     var a=normalizeIngredientName(inputName).split(" ");
     var b=normalizeIngredientName(officialName).split(" ");
     if(a.length!==b.length){return 99;}
 
-    var score=0,changed=0;
+    var score=0,typoChanges=0,changed=0;
     for(var i=0;i<a.length;i++){
       if(a[i]===b[i]){continue;}
-      /* Piccole flessioni/plurali: Rametti/Rametto, Petali/Petalo, Zanne/Zanna... */
+      changed++;
+      /* Singolare/plurale italiano non è un refuso: tolleriamo anche più parole
+         flesse insieme (es. «Bruchi Pelosi Carnivori» → «Bruco Peloso Carnivoro»). */
+      if(ingredientItalianPluralEquivalent(a[i],b[i])){continue;}
       if(a[i].length<4 || b[i].length<4 || a[i].charAt(0)!==b[i].charAt(0)){return 99;}
       var d=ingredientTokenDistance(a[i],b[i]);
       if(d!==1){return 99;}
-      score+=d;changed++;
-      if(changed>2 || score>2){return 99;}
+      score+=d;typoChanges++;
+      if(typoChanges>2 || score>2){return 99;}
     }
     return changed>0?score:0;
   }
@@ -10457,13 +10499,27 @@
   function decodeDispensaHtmlEntities(s){
     var ta=document.createElement("textarea");ta.innerHTML=String(s||"");return ta.value;
   }
+  function dispensaQuantityFromExpression(expr){
+    var s=String(expr||"").replace(/\s+/g,"");
+    if(!/^\d+(?:\+\d+)*$/.test(s)){return null;}
+    var p=s.split("+"),tot=0;
+    for(var i=0;i<p.length;i++){tot+=Math.max(0,parseInt(p[i],10)||0);}
+    return tot>0?tot:null;
+  }
   function parseDispensaBulkLine(raw){
     var line=String(raw||"").trim();
     if(!line){return null;}
 
-    /* Ripulisce prima il rumore: HTML, BBCode, icone e frammenti Font Awesome. */
+    /* Prima elimina ciò che non descrive l'Ingrediente: URL con la loro "x",
+       icone, HTML/BBCode, valori barrati e markup copiato dal Forum. */
+    line=line.replace(/\\(?=[<>\[\]])/g,"");
+    line=line.replace(/<del\b[^>]*>[\s\S]*?<\/del>/gi," ");
+    line=line.replace(/<i\b[^>]*>[\s\S]*?<\/i>/gi," ");
+    line=line.replace(/<a\b[^>]*>[\s\S]*?<\/a>/gi," ");
+    line=line.replace(/\[url(?:=[^\]]*)?\][\s\S]*?\[\/url\]/gi," ");
+    line=line.replace(/\[img(?:=[^\]]*)?\][\s\S]*?\[\/img\]/gi," ");
     line=line.replace(/<br\s*\/?>/gi," ").replace(/<[^>]+>/g," ");
-    line=line.replace(/\[(?:\/?(?:b|i|u|color|font|size|url|quote|center|left|right)|img)(?:=[^\]]*)?\]/gi," ");
+    line=line.replace(/\[(?:\/?(?:b|i|u|s|del|color|font|size|url|quote|center|left|right)|img)(?:=[^\]]*)?\]/gi," ");
     line=decodeDispensaHtmlEntities(line);
     line=line.replace(/\(?\s*i\s+class\s*=\s*["'][^"']+["']\s*\/?\s*>?\s*\)?/gi," ");
     line=line.replace(/\bfa-(?:solid|regular|light|thin|duotone|brands|ban|flask-vial|check|circle-check)\b/gi," ");
@@ -10474,7 +10530,7 @@
     /* Intestazioni e righe descrittive che non sono Ingredienti. */
     if(/^RISULTATI\s+RACCOLTA\s*:?\s*$/i.test(line)){return null;}
     if(/^GENERATORE\s+RICERCA\s+INGREDIENTI/i.test(line)){return null;}
-    if(/^\*{0,2}\s*Ingredienti\s+(?:X|XX|XXX|XXXX|XXXXX)\s*\*{0,2}\s*:?\s*$/i.test(line)){return null;}
+    if(/^Ingredienti\s+(?:X|XX|XXX|XXXX|XXXXX)(?:\s*[—–-]\s*\d+\s*voce\/i)?\s*$/i.test(line)){return null;}
     if(/^Class(?:ificazione)?\.?\s*:?\s*(?:X|XX|XXX|XXXX|XXXXX)\s*$/i.test(line)){return null;}
     if(/^(?:XXXXX|XXXX|XXX|XX|X)$/i.test(line)){return null;}
 
@@ -10483,27 +10539,32 @@
     line=line.replace(/^(?:class(?:ificazione)?\.?\s*)?(?:XXXXX|XXXX|XXX|XX|X)\s*(?::|\||[-–—])\s*/i,"");
     line=line.replace(/^\[(?:XXXXX|XXXX|XXX|XX|X)\]\s*(?::|\||[-–—])?\s*/i,"");
 
-    var qty=1,m;
-    /* Quantità all'inizio: 3 | Nome, 3x Nome, x3 Nome, 3 dosi Nome. */
-    m=line.match(/^(\d+)\s*(?:\||x|×|[-–—]|dosi?\s+)(.+)$/i);
-    if(m){qty=Math.max(1,parseInt(m[1],10)||1);line=m[2].trim();}
-    else{
-      m=line.match(/^[x×]\s*(\d+)\s+(.+)$/i);
+    var qty=1,m,q;
+    /* La quantità fra parentesi quadre può trovarsi PRIMA dei link e delle icone.
+       Supporta anche somme storiche come [1+4]. */
+    m=line.match(/^(.*?)\s*\[\s*(\d+(?:\s*\+\s*\d+)*)\s*\]\s*(.*)$/);
+    if(m){
+      q=dispensaQuantityFromExpression(m[2]);
+      if(q!=null){qty=q;line=m[1].trim();}
+    }else{
+      /* Quantità all'inizio: 3 | Nome, 3x Nome, x3 Nome, 3 dosi Nome. */
+      m=line.match(/^(\d+)\s*(?:\||x|×|[-–—]|dosi?\s+)(.+)$/i);
       if(m){qty=Math.max(1,parseInt(m[1],10)||1);line=m[2].trim();}
-    }
+      else{
+        m=line.match(/^[x×]\s*(\d+)\s+(.+)$/i);
+        if(m){qty=Math.max(1,parseInt(m[1],10)||1);line=m[2].trim();}
+      }
 
-    /* Quantità finali comuni: Nome [3], Nome x3, Nome (3 dosi), Nome - 3 dosi. */
-    m=line.match(/^(.*?)\s*\[(\d+)\]\s*$/);
-    if(m){line=m[1].trim();qty=Math.max(1,parseInt(m[2],10)||1);}
-    else{
+      /* Quantità finali: Nome x3, Nome (3 dosi), Nome - 3 dosi. */
       m=line.match(/^(.*?)\s*(?:[x×]\s*(\d+)|\((\d+)\s*dosi?\)|[-–—]\s*(\d+)\s*dosi?)\s*$/i);
       if(m){line=m[1].trim();qty=Math.max(1,parseInt(m[2]||m[3]||m[4],10)||1);}
     }
 
-    /* Etichette residue che talvolta vengono copiate insieme al nome. */
     line=line.replace(/^Ingrediente\s*:\s*/i,"");
     line=line.replace(/\s+(?:ingrediente|ingredienti)\s*$/i,"");
-    line=line.replace(/\s+/g," ").trim();
+    /* Eventuali semplici "x" rimaste da un copia-incolla visuale di link non
+       devono contaminare il nome. */
+    line=line.replace(/(?:\s*[+×x]\s*)+$/i,"").replace(/\s+/g," ").trim();
     if(!line){return null;}
     return {qty:qty,name:line};
   }
@@ -10546,6 +10607,7 @@
        numerazioni e separatori grafici diventano tutti semplici confini. */
     text=text.replace(/[ \t]*[•▪◦‣][ \t]*/g,'\n');
     text=text.replace(/\s*;\s*/g,'\n');
+    text=text.replace(/\s*,\s*(?=[A-ZÀ-ÖØ-Ý])/g,'\n');
     text=text.replace(/\s+(?=\d+[.)]\s+[A-ZÀ-ÖØ-Ý])/g,'\n');
     text=text.replace(/\s+(?=(?:XXXXX|XXXX|XXX|XX|X)\s*(?::|\||[-–—])\s*[A-ZÀ-ÖØ-Ý])/g,'\n');
 
@@ -10960,14 +11022,21 @@
     bulkBtn.addEventListener(EV,function(){
       var bulkRaw=String(bulk.value||"");
       var fromIngredientGenerator=/(?:FELIX_ELFO_[A-Z_]*INGREDIENT|RISULTATI\s+RACCOLTA\s*:|GENERATORE\s+RICERCA\s+INGREDIENTI)/i.test(bulkRaw);
-      var rawLines=splitDispensaBulkText(bulkRaw),errs=[],added=0;
+      var rawLines=splitDispensaBulkText(bulkRaw),errs=[],added=0,doses=0;
       for(var bi=0;bi<rawLines.length;bi++){
         var parsed=parseDispensaBulkLine(rawLines[bi]);
         if(!parsed){continue;}
         var rr=addIngredienteCatalogo(parsed.name,parsed.qty,bulkProv.value,bulkLink.value,bulkProd.value);
-        if(rr.ok){added++;}else{errs.push(parsed.name);}
+        if(rr.ok){added++;doses+=Math.max(1,parseInt(parsed.qty,10)||1);}else{errs.push(parsed.name);}
       }
-      if(errs.length){alert("Non riconosciuti nel Glossario: "+errs.join(", "));}
+      /* Niente più alert enorme: ciò che non è nel Glossario viene SALTATO e
+         mostrato sotto al pulsante. Chiudere/leggere il report non modifica nulla. */
+      var uniqueErrs=[];for(var ei=0;ei<errs.length;ei++){if(uniqueErrs.indexOf(errs[ei])<0){uniqueErrs.push(errs[ei]);}}
+      if(added||uniqueErrs.length){
+        DISPENSA_IMPORT_REPORT={added:added,doses:doses,errors:uniqueErrs};
+      }else{
+        DISPENSA_IMPORT_REPORT={added:0,doses:0,errors:[],empty:true};
+      }
       if(added){
         if(fromIngredientGenerator){
           recordExternalImportNotice("Generatore Ricerca Ingredienti","Importati "+added+(added===1?" Ingrediente in Dispensa.":" Ingredienti in Dispensa."),"dispensa");
@@ -10976,9 +11045,24 @@
         resizeBulkTextarea();
         scheduleSave(0);
         renderAll();
+      }else{
+        renderAll();
       }
     });
     bulkDet.appendChild(bulkBtn);
+    if(DISPENSA_IMPORT_REPORT){
+      var rep=DISPENSA_IMPORT_REPORT;
+      var repClass=rep.errors&&rep.errors.length?"warning-alert":"guide-text";
+      var repBox=el("div",repClass);
+      if(rep.cleared){repBox.textContent="Dispensa azzerata. Se è stato un errore, usa ↶ Annulla.";}else if(rep.empty){repBox.textContent="Non ho trovato Ingredienti da importare nel testo incollato.";}
+      else{
+        var msg=(rep.added?"Importati "+rep.added+" voce/i ("+rep.doses+" dose/i). ":"");
+        if(rep.errors&&rep.errors.length){msg+="Non aggiunti perché assenti/non riconosciuti nel Glossario: "+rep.errors.join(", ")+".";}
+        else{msg+="Tutti gli Ingredienti riconosciuti sono stati aggiunti.";}
+        repBox.textContent=msg;
+      }
+      bulkDet.appendChild(repBox);
+    }
 
     /* Il blocco di aggiunta contiene: incolla → aggiunta manuale/glossario; nell'interfaccia viene mostrato dopo Ingredienti posseduti. */
     var glossaryDet=el("details","stage dispensa-glossary-section");
@@ -10989,6 +11073,21 @@
 
     var inventoryBlock=el("div","dispensa-block dispensa-inventory-block");
     inventoryBlock.appendChild(el("div","dispensa-block-head","<span class=\"dispensa-block-number\">1</span><span class=\"dispensa-block-label\">Ingredienti posseduti</span>"));
+    if(DISPENSA.ingredienti.length||DISPENSA.movimenti.length){
+      var clearDispRow=el("div","dispensa-batch-actions");
+      var clearDisp=el("button","action danger small","Azzera Dispensa");clearDisp.type="button";
+      clearDisp.title="Rimuove Ingredienti e storico della Dispensa; l'azione resta recuperabile con ↶ Annulla.";
+      clearDisp.addEventListener(EV,function(){
+        DISPENSA.ingredienti=[];DISPENSA.movimenti=[];
+        DISPENSA.archivioTotali={galeoniVendite:0,perCommercianteTipo:{},conteggiMovimenti:{}};
+        ingredienteCounter=0;movimentoCounter=0;resetDispensaBatch();
+        DISPENSA_IMPORT_REPORT={added:0,doses:0,errors:[],empty:true,cleared:true};
+        scheduleSave(0);renderAll();
+      });
+      clearDispRow.appendChild(clearDisp);
+      clearDispRow.appendChild(el("span","small-note","Per ripartire da zero dopo un'importazione sbagliata. Se lo premi per errore, usa subito ↶ Annulla."));
+      inventoryBlock.appendChild(clearDispRow);
+    }
     if(!DISPENSA.ingredienti.length){ inventoryBlock.appendChild(el("p","small-note","Nessun Ingrediente registrato.")); }
     var classOrder=["X","XX","XXX","XXXX","XXXXX","Esseri, Non-Esseri e Spiriti","Non classificato"];
     for(var co=0;co<classOrder.length;co++){
