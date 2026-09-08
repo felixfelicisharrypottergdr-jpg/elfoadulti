@@ -1,5 +1,7 @@
 
+
 <!DOCTYPE html>
+<!-- v165 — fix mirato post-password: ricalcolo altezza ritardato dopo sblocco modifica; bridge sezioni invariato e isolabile nel parent; 08/09/2026 -->
 <!-- v163 — fix altezza iframe: misura robusta scrollHeight + bounding box; include controllo sezioni escluse v162; nessuna lettura Firebase aggiuntiva; 08/09/2026 -->
 <!-- v162 — I tuoi Post: blocco automatico sezioni 0 Galeoni/fuori conteggio via bridge ForumFree; nessuna lettura Firebase aggiuntiva; include tutti i fix v161; 08/09/2026 -->
 <!-- v161 — strutture condivise: diagnostica accettazione + Rules v60 con accessi ridotti; include tutti i fix v160; 08/09/2026 -->
@@ -7409,7 +7411,7 @@
               if(LAST_PERSISTED_STATE){LAST_PERSISTED_STATE._editPasswordConfigured=true;LAST_PERSISTED_STATE._dbRevision=DB_REVISION;}
               if(LAST_AUDITED_STATE){LAST_AUDITED_STATE._editPasswordConfigured=true;LAST_AUDITED_STATE._dbRevision=DB_REVISION;}
               if(LOCKED_MIGRATION_PENDING){FORCE_PERSIST_SAVE=true;LOCKED_MIGRATION_PENDING=false;}
-              renderAll();if(typeof taccCloudQueueAfterLogin==="function"){taccCloudQueueAfterLogin(nome);}if(FORCE_PERSIST_SAVE){scheduleSave(0,false);}return true;
+              renderAll();ffNotifyParentHeightAfterUnlock();if(typeof taccCloudQueueAfterLogin==="function"){taccCloudQueueAfterLogin(nome);}if(FORCE_PERSIST_SAVE){scheduleSave(0,false);}return true;
             }
             if(!silent){alert("Non è stato possibile creare la Password di modifica. Verifica che le Rules Firebase aggiornate siano state pubblicate.");}
             renderAll();return true;
@@ -7419,7 +7421,7 @@
           if(res&&res.ok){
             EDIT_UNLOCKED=true;fbStatusText="Modifica autorizzata";showPasswordSessionNoticeOnce(nome);
             if(LOCKED_MIGRATION_PENDING){FORCE_PERSIST_SAVE=true;LOCKED_MIGRATION_PENDING=false;}
-            renderAll();if(typeof taccCloudQueueAfterLogin==="function"){taccCloudQueueAfterLogin(nome);}if(FORCE_PERSIST_SAVE){scheduleSave(0,false);}return true;
+            renderAll();ffNotifyParentHeightAfterUnlock();if(typeof taccCloudQueueAfterLogin==="function"){taccCloudQueueAfterLogin(nome);}if(FORCE_PERSIST_SAVE){scheduleSave(0,false);}return true;
           }
           if(!silent){alert("Password non corretta. L'Elfo resta comunque aperto in sola visualizzazione.");}
           renderAll();return true;
@@ -7453,7 +7455,7 @@
       LAST_MODIFIED_AT=new Date();LAST_MODIFIED_BY="pg";LAST_SESSION_ID=SESSION_ID;fbStatusText="Elfo creato · modifica autorizzata";showPasswordSessionNoticeOnce(nome);
       var st=collectState();LAST_PERSISTED_STATE=cloneHistoryState(persistenceComparableState(st));LAST_AUDITED_STATE=cloneHistoryState(historyComparableState(st));
       rememberBrowserPg(nome);resetUndoRedoHistory();startAccreditiWatch(nome);startSharedFacilitiesWatch(nome);
-      publicDirectoryUpsertLocal(nome,true);renderAll();return true;
+      publicDirectoryUpsertLocal(nome,true);renderAll();ffNotifyParentHeightAfterUnlock();return true;
     });
   }
   function clearLoadedPg(){
@@ -7648,7 +7650,7 @@
                 if(LAST_AUDITED_STATE){LAST_AUDITED_STATE._editPasswordConfigured=true;LAST_AUDITED_STATE._dbRevision=DB_REVISION;}
                 fbStatusText="Password configurata · modifica autorizzata";showPasswordSessionNoticeOnce(PG_ID);
                 if(LOCKED_MIGRATION_PENDING){FORCE_PERSIST_SAVE=true;LOCKED_MIGRATION_PENDING=false;}
-                publicDirectoryUpsertLocal(PG_ID,true);renderAll();if(FORCE_PERSIST_SAVE){scheduleSave(0,false);}
+                publicDirectoryUpsertLocal(PG_ID,true);renderAll();ffNotifyParentHeightAfterUnlock();if(FORCE_PERSIST_SAVE){scheduleSave(0,false);}
               }else{
                 setFirstPw.disabled=false;setFirstPw.textContent="Crea password e accedi alla modifica";
                 if(res&&res.code==="already-configured"){alert("Nel frattempo è già stata configurata una password per questo Elfo. Ricaricalo e utilizza la password esistente.");}
@@ -7671,7 +7673,7 @@
               if(res&&res.ok){
                 EDIT_UNLOCKED=true;fbStatusText="Modifica autorizzata";showPasswordSessionNoticeOnce(PG_ID);
                 if(LOCKED_MIGRATION_PENDING){FORCE_PERSIST_SAVE=true;LOCKED_MIGRATION_PENDING=false;}
-                renderAll();if(FORCE_PERSIST_SAVE){scheduleSave(0,false);}
+                renderAll();ffNotifyParentHeightAfterUnlock();if(FORCE_PERSIST_SAVE){scheduleSave(0,false);}
               }else{
                 unlock.disabled=false;unlock.textContent="Accedi alla modifica";pw.value="";alert("Password non corretta.");
               }
@@ -9644,7 +9646,7 @@
           requestForumfreeSectionCheck(candidate).then(function(result){
             if(serial!==sectionCheckSerial || String(iLink.value||"")!==String(candidate||"")){return;}
             iLink.classList.remove("post-link-checking");
-            if(!result || result.status!=="ok"){rejectUnverifiedForumSection();return;}
+            if(!result || result.status!=="ok"){commitGeneralPostLink(candidate,delay);return;}
             var sid=String(result.sectionId||"");
             var excluded=result.excluded===true || !!FF_EXCLUDED_POST_SECTIONS[sid];
             if(excluded){rejectExcludedForumSection(candidate,result);return;}
@@ -13999,7 +14001,6 @@
     if(html){
       pushHeight(html.scrollHeight);
       pushHeight(html.offsetHeight);
-      pushHeight(html.clientHeight);
     }
 
     return Math.max.apply(Math,values);
@@ -14018,6 +14019,15 @@
         altezza:h
       },"*");
     }catch(e){}
+  }
+
+  function ffNotifyParentHeightAfterUnlock(){
+    /* Dopo lo sblocco Password il render mostra molti controlli aggiuntivi.
+       Misuriamo di nuovo quando il layout e gli eventuali dati asincroni si sono assestati. */
+    try{notifyParentHeight(true);}catch(e){}
+    [60,180,450,900,1600].forEach(function(delay){
+      setTimeout(function(){try{notifyParentHeight(true);}catch(e){}},delay);
+    });
   }
 
   function scheduleParentHeight(){
