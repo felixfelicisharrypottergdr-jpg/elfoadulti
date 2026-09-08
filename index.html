@@ -1,5 +1,6 @@
 
 <!DOCTYPE html>
+<!-- v161 — strutture condivise: diagnostica accettazione + Rules v60 con accessi ridotti; include tutti i fix v160; 08/09/2026 -->
 <!-- v160 — fix finale accettazione inviti strutture condivise; richiede Rules v59; include tutti i fix v159; 08/09/2026 -->
 <!-- v159 — strutture condivise: accettazione inviti + sezioni condivise accessibili anche senza tick personale; include tutti i fix v158; 08/09/2026 -->
 <!-- v158 — strutture: numerazione Postazioni per singolo Laboratorio + avvisi solo per import automatici esterni; 08/09/2026 -->
@@ -2818,29 +2819,36 @@
 
   window.fbAcceptSharedInvite = async function(sharedId,pgId){
     var actor=String(pgId||"").trim();
+    var diag={sessionOk:false,inviteFound:false,alreadyMember:false,actor:actor};
     try{
       await ensurePlayerAuth();
-      if(window.fbHasEditSession){var sessionOk=await window.fbHasEditSession(actor);if(!sessionOk)throw new Error("edit-session-missing");}
+      if(window.fbHasEditSession){
+        var sessionOk=await window.fbHasEditSession(actor);
+        diag.sessionOk=!!sessionOk;
+        if(!sessionOk)throw new Error("edit-session-missing");
+      }else{diag.sessionOk=true;}
       var ref=doc(fbDb,SHARED_FACILITY_COLLECTION,String(sharedId||""));
       var outcome=await runTransaction(fbDb,async function(tx){
         var snap=await tx.get(ref);if(!snap.exists())throw new Error("shared-not-found");
         var cur=snap.data()||{},members=sharedCleanList(cur.memberIds),inv=sharedCleanList(cur.invitedIds);
         var alreadyMember=members.indexOf(actor)>=0,stillInvited=inv.indexOf(actor)>=0;
+        diag.alreadyMember=alreadyMember;diag.inviteFound=stillInvited;
         if(alreadyMember&&!stillInvited){return {alreadyAccepted:true};}
         if(!stillInvited)throw new Error("invite-not-found");
         inv=inv.filter(function(x){return x!==actor;});
         if(!alreadyMember)members.push(actor);
-        /* v98: il cambio di stato dell'invito modifica SOLO membership e inviti.
-           Niente activity/revision/timestamp: in questo modo anche i documenti legacy
-           possono essere accettati senza dipendere dal loro vecchio schema. */
+        /* L'accettazione modifica soltanto memberIds e invitedIds. */
         tx.update(ref,{memberIds:members,invitedIds:inv});
         return {alreadyAccepted:false};
       });
       var verified=await getDoc(ref);if(!verified.exists())throw new Error("shared-not-found-after-accept");
       var data=verified.data()||{},vmembers=sharedCleanList(data.memberIds),vinv=sharedCleanList(data.invitedIds);
       if(vmembers.indexOf(actor)<0||vinv.indexOf(actor)>=0)throw new Error("accept-not-confirmed");
-      return {ok:true,alreadyAccepted:!!outcome.alreadyAccepted,data:data};
-    }catch(e){console.error(e);return {ok:false,code:(e&&e.code)||((e&&e.message)||"error")};}
+      return {ok:true,alreadyAccepted:!!outcome.alreadyAccepted,data:data,diag:diag};
+    }catch(e){
+      console.error(e);
+      return {ok:false,code:(e&&e.code)||((e&&e.message)||"error"),diag:diag};
+    }
   };
 
   window.fbRejectSharedInvite = async function(sharedId,pgId){
@@ -5102,7 +5110,7 @@
         alert("La sessione di modifica non risulta più attiva. Disconnetti, reinserisci la Password del PG e riprova il salvataggio della struttura condivisa.");
       }else{
         fbStatusText="Struttura condivisa non salvata: "+code;updateFbIndicator();
-        alert("Non è stato possibile salvare la struttura condivisa ("+code+"). Verifica che siano pubblicate le Rules v59 correnti e riprova.");
+        alert("Non è stato possibile salvare la struttura condivisa ("+code+"). Verifica che siano pubblicate le Rules v60 correnti e riprova.");
       }
       return false;
     });
@@ -5182,7 +5190,7 @@
       alert("Non posso avviare la condivisione perché un salvataggio precedente non è andato a buon fine ("+code+"). Riprova dopo aver verificato la connessione.");
     }).finally(function(){if(btn&&document.body.contains(btn)){btn.disabled=false;}});
   }
-  function sharedInviteExisting(fac,invitee,btn){if(!sharedIsOwner(fac)){sharedInlineActionFeedback(btn,"Solo il Proprietario può invitare nuovi Collaboratori.",true);return;}invitee=normalizePgName(invitee||"");if(!invitee||invitee===normalizePgName(PG_ID)){sharedInlineActionFeedback(btn,"Scegli un altro PG Adulto registrato.",true);return;}btn&&(btn.disabled=true);sharedInlineActionFeedback(btn,"Invio invito…",false);window.fbInviteSharedFacility(fac._sharedId,invitee,PG_ID).then(function(res){if(!res||!res.ok){var code=res&&res.code?String(res.code):"errore sconosciuto";sharedInlineActionFeedback(btn,code==="already-member-or-invited"?"Questo PG è già Collaboratore o ha già un invito in attesa.":("Invito non riuscito — "+code+(code.indexOf("permission-denied")>=0?" · verifica le Rules v59 correnti":"")),true);return;}sharedInlineActionFeedback(btn,"Invito inviato a "+invitee+".",false);refreshSharedFacilitiesNow();}).catch(function(e){sharedInlineActionFeedback(btn,"Invito non riuscito — "+String((e&&e.code)||((e&&e.message)||"error")),true);}).finally(function(){if(btn&&document.body.contains(btn))btn.disabled=false;});}
+  function sharedInviteExisting(fac,invitee,btn){if(!sharedIsOwner(fac)){sharedInlineActionFeedback(btn,"Solo il Proprietario può invitare nuovi Collaboratori.",true);return;}invitee=normalizePgName(invitee||"");if(!invitee||invitee===normalizePgName(PG_ID)){sharedInlineActionFeedback(btn,"Scegli un altro PG Adulto registrato.",true);return;}btn&&(btn.disabled=true);sharedInlineActionFeedback(btn,"Invio invito…",false);window.fbInviteSharedFacility(fac._sharedId,invitee,PG_ID).then(function(res){if(!res||!res.ok){var code=res&&res.code?String(res.code):"errore sconosciuto";sharedInlineActionFeedback(btn,code==="already-member-or-invited"?"Questo PG è già Collaboratore o ha già un invito in attesa.":("Invito non riuscito — "+code+(code.indexOf("permission-denied")>=0?" · verifica le Rules v60 correnti":"")),true);return;}sharedInlineActionFeedback(btn,"Invito inviato a "+invitee+".",false);refreshSharedFacilitiesNow();}).catch(function(e){sharedInlineActionFeedback(btn,"Invito non riuscito — "+String((e&&e.code)||((e&&e.message)||"error")),true);}).finally(function(){if(btn&&document.body.contains(btn))btn.disabled=false;});}
   function sharedInlineActionFeedback(btn,message,isError){
     if(!btn)return;var old=btn.nextElementSibling;
     if(old&&old.classList&&old.classList.contains("shared-inline-action-feedback")){old.remove();}
@@ -5310,7 +5318,12 @@
       box.appendChild(el("div",null,"<b>"+meta.owner+"</b> ti invita a collaborare a «<b>"+meta.name+"</b>». Dopo l’accettazione la stessa struttura comparirà nel tuo Elfo e ogni modifica sarà sincronizzata per tutti i Collaboratori."));
       if(actionState.status==="error"){
         var errCode=String(actionState.code||"errore sconosciuto");
-        box.appendChild(el("div","shared-inline-error","⚠ L’invito non risulta accettato. Codice: <b>"+errCode+"</b>. "+(errCode.indexOf("permission-denied")>=0?"Verifica che siano pubblicate le Rules v59 correnti e riprova.":(errCode.indexOf("edit-session-missing")>=0?"Disconnetti, rientra con la Password e riprova.":"Riprova: se il codice resta uguale, comunicamelo."))));
+        var errHint=errCode.indexOf("permission-denied")>=0?"Verifica che siano pubblicate le Rules v60 correnti e riprova.":(errCode.indexOf("edit-session-missing")>=0?"Disconnetti, rientra con la Password e riprova.":"Riprova: se il codice resta uguale, comunicamelo.");
+        var d=actionState.diag||{},diagTxt="";
+        if(actionState.diag){
+          diagTxt=" <span class=\"small-note\">Diagnosi locale: sessione "+(d.sessionOk?"OK":"NO")+" · invito "+(d.inviteFound?"presente":"non trovato")+" · Collaboratore "+(d.alreadyMember?"già presente":"non ancora presente")+".</span>";
+        }
+        box.appendChild(el("div","shared-inline-error","⚠ L’invito non risulta accettato. Codice: <b>"+errCode+"</b>. "+errHint+diagTxt));
       }
       var actions=el("div","shared-alert-actions"),ok=el("button","action",actionState.status==="pending"?"Verifica…":"Accetta"),no=el("button","action danger","Rifiuta");
       ok.type=no.type="button";
@@ -5319,7 +5332,19 @@
         if(!EDIT_UNLOCKED){alert("Sblocca la modifica del tuo Elfo per accettare l’invito.");return;}
         SHARED_INVITE_ACTION_STATE[id]={status:"pending"};renderAll();
         window.fbAcceptSharedInvite(id,PG_ID).then(function(res){
-          if(!res||!res.ok){SHARED_INVITE_ACTION_STATE[id]={status:"error",code:res&&res.code?String(res.code):"errore sconosciuto"};renderAll();return;}
+          if(!res||!res.ok){
+            var diag=res&&res.diag?res.diag:{};
+            SHARED_INVITE_ACTION_STATE[id]={
+              status:"error",
+              code:res&&res.code?String(res.code):"errore sconosciuto",
+              diag:{
+                sessionOk:diag.sessionOk===true,
+                inviteFound:diag.inviteFound===true,
+                alreadyMember:diag.alreadyMember===true
+              }
+            };
+            renderAll();return;
+          }
           SHARED_INVITE_ACTION_STATE[id]={status:"accepted"};SHARED_INVITE_LAST_NOTICE="✓ Collaborazione accettata: «"+meta.name+"».";
           if(res.data){sharedApplyAcceptedInviteLocally(id,res.data);}else{delete SHARED_FACILITY_INVITES[id];renderAll();}
           refreshSharedFacilitiesNow();
@@ -5339,7 +5364,7 @@
       box.appendChild(el("strong",null,"🔔 Struttura condivisa aggiornata — "+meta.label));
       var latest=events.slice(-6),parts=latest.map(function(a){return "<b>"+String(a.actor||"Collaboratore")+"</b>: "+String(a.summary||"modifica")}),hidden=Math.max(0,events.length-latest.length),tail=hidden?" · <b>+"+hidden+" altre modifiche</b>":"";
       box.appendChild(el("div",null,"«<b>"+meta.name+"</b>» — "+parts.join(" · ")+tail));
-      if(seenState.status==="error"){var seenCode=String(seenState.code||"errore sconosciuto"),seenHint=seenCode.indexOf("edit-session-missing")>=0?" La sessione di modifica non è più attiva: disconnetti e reinserisci la Password.":(seenCode.indexOf("permission-denied")>=0||seenCode.indexOf("Missing or insufficient permissions")>=0?" Verifica che siano pubblicate le Rules v59 correnti e riprova.":"");box.appendChild(el("div","shared-inline-error","⚠ Non è stato possibile segnare l’avviso come visualizzato. Codice: <b>"+seenCode+"</b>."+seenHint));}
+      if(seenState.status==="error"){var seenCode=String(seenState.code||"errore sconosciuto"),seenHint=seenCode.indexOf("edit-session-missing")>=0?" La sessione di modifica non è più attiva: disconnetti e reinserisci la Password.":(seenCode.indexOf("permission-denied")>=0||seenCode.indexOf("Missing or insufficient permissions")>=0?" Verifica che siano pubblicate le Rules v60 correnti e riprova.":"");box.appendChild(el("div","shared-inline-error","⚠ Non è stato possibile segnare l’avviso come visualizzato. Codice: <b>"+seenCode+"</b>."+seenHint));}
       var ackLabel=seenState.status==="pending"?"Salvo…":(seenState.status==="error"?"Riprova Visualizzato":"✓ Visualizzato");
       var actions=el("div","shared-alert-actions"),go=el("button","action small elfo-readonly-safe","Apri "+meta.label),ack=el("button","action ghost small",ackLabel);
       go.type=ack.type="button";if(seenState.status==="pending"){ack.disabled=true;}
