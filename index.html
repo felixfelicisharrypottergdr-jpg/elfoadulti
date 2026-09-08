@@ -1,5 +1,6 @@
 
 <!DOCTYPE html>
+<!-- v157 — macro-audit Laboratori/contatori: fix condivisione Collaboratori, N. globale in I tuoi Post, Pulizia più chiara; include tutti i fix v156; 08/09/2026 -->
 <!-- v156 — Dispensa: alias Nogtail/Hodag + nome Pugnacio uniformato; include tutti i fix v155, 07/09/2026 -->
 <!-- v155 — Bonus: fix Firestore __primary__, contatore Usi per riga, editor semplificato, rerender stabile; ST invariati, 07/09/2026 -->
 <!-- v154 — fix Bonus __primary__ Firestore + rerender stabile senza saltino iframe; ST invariati, 07/09/2026 -->
@@ -2353,7 +2354,8 @@
         usatiIniziali:Math.max(0,parseInt(b.usatiIniziali,10)||0),
         usatiConfermati:b.usatiConfermati===true,
         variabileSu:["pp","galeoni","altro"].indexOf(b.variabileSu)>=0?b.variabileSu:"pp",
-        utilizziManuali:Math.max(0,parseInt(b.utilizziManuali,10)||0)
+        utilizziManuali:Math.max(0,parseInt(b.utilizziManuali,10)||0),
+        aggiornaBagaglio:b.aggiornaBagaglio!==false
       };
     });
     return base;
@@ -2409,6 +2411,35 @@
     if(id){for(i=0;i<list.length;i++){if(String((list[i]&&list[i].id!=null)?list[i].id:"")===id){return i;}}}
     if(name){for(i=0;i<list.length;i++){if(txNormMonth(list[i]&&list[i].nome)===name){return i;}}}
     return -1;
+  }
+  /* v157 — usata dalla conversione atomica di una struttura personale in
+     struttura condivisa. La chiamata esisteva già ma la funzione mancava,
+     causando "txAssertAccreditedMonthsUnchanged is not defined".
+     Verifica che la condivisione non tocchi in alcun modo i Mesi già accreditati. */
+  function txAssertAccreditedMonthsUnchanged(remoteData,proposedData,accData){
+    remoteData=remoteData||{};proposedData=proposedData||{};
+    var selectors=txAccreditedSelectors(accData);
+    var remote=Array.isArray(remoteData.MESI)?remoteData.MESI:[];
+    var proposed=Array.isArray(proposedData.MESI)?proposedData.MESI:[];
+    var i,rm,pm;
+
+    for(i=0;i<remote.length;i++){
+      rm=remote[i]||{};
+      if(!txMonthProtected(rm,selectors)){continue;}
+      pm=txFindMonth(proposed,rm);
+      if(!pm||!txAccreditedMonthEquivalent(rm,pm)){
+        throw new Error("accredited-month-conflict");
+      }
+    }
+    for(i=0;i<proposed.length;i++){
+      pm=proposed[i]||{};
+      if(!txMonthProtected(pm,selectors)){continue;}
+      rm=txFindMonth(remote,pm);
+      if(!rm||!txAccreditedMonthEquivalent(rm,pm)){
+        throw new Error("accredited-month-conflict");
+      }
+    }
+    return true;
   }
   function txProtectAccreditedMonths(remoteData,proposedData,accData,baselineData){
     remoteData=remoteData||{};proposedData=proposedData||{};baselineData=baselineData||{};
@@ -3111,7 +3142,7 @@
           if(staff.stafferAttivo===false)throw new Error("staff-token-staffer-inactive");
           if(usage&&usage.active===true){
             /* Un uso già attivo può arrivare qui dopo un refresh/race locale.
-               Se nel frattempo è cambiato il link del Post, Rules v44 richiedono
+               Se nel frattempo è cambiato il link del Post, le Rules correnti richiedono
                che uso e log di spesa restino coerenti nello STESSO commit. */
             var activeLogId=String(usage.spendLogId||"").trim();
             if(!activeLogId)throw new Error("staff-token-spend-log-missing");
@@ -5047,7 +5078,7 @@
         alert("La sessione di modifica non risulta più attiva. Disconnetti, reinserisci la Password del PG e riprova il salvataggio della struttura condivisa.");
       }else{
         fbStatusText="Struttura condivisa non salvata: "+code;updateFbIndicator();
-        alert("Non è stato possibile salvare la struttura condivisa ("+code+"). Pubblica le Rules v44 e riprova.");
+        alert("Non è stato possibile salvare la struttura condivisa ("+code+"). Verifica che siano pubblicate le Rules v57 correnti e riprova.");
       }
       return false;
     });
@@ -5127,7 +5158,7 @@
       alert("Non posso avviare la condivisione perché un salvataggio precedente non è andato a buon fine ("+code+"). Riprova dopo aver verificato la connessione.");
     }).finally(function(){if(btn&&document.body.contains(btn)){btn.disabled=false;}});
   }
-  function sharedInviteExisting(fac,invitee,btn){if(!sharedIsOwner(fac)){sharedInlineActionFeedback(btn,"Solo il Proprietario può invitare nuovi Collaboratori.",true);return;}invitee=normalizePgName(invitee||"");if(!invitee||invitee===normalizePgName(PG_ID)){sharedInlineActionFeedback(btn,"Scegli un altro PG Adulto registrato.",true);return;}btn&&(btn.disabled=true);sharedInlineActionFeedback(btn,"Invio invito…",false);window.fbInviteSharedFacility(fac._sharedId,invitee,PG_ID).then(function(res){if(!res||!res.ok){var code=res&&res.code?String(res.code):"errore sconosciuto";sharedInlineActionFeedback(btn,code==="already-member-or-invited"?"Questo PG è già Collaboratore o ha già un invito in attesa.":("Invito non riuscito — "+code+(code.indexOf("permission-denied")>=0?" · verifica le Rules v44":"")),true);return;}sharedInlineActionFeedback(btn,"Invito inviato a "+invitee+".",false);refreshSharedFacilitiesNow();}).catch(function(e){sharedInlineActionFeedback(btn,"Invito non riuscito — "+String((e&&e.code)||((e&&e.message)||"error")),true);}).finally(function(){if(btn&&document.body.contains(btn))btn.disabled=false;});}
+  function sharedInviteExisting(fac,invitee,btn){if(!sharedIsOwner(fac)){sharedInlineActionFeedback(btn,"Solo il Proprietario può invitare nuovi Collaboratori.",true);return;}invitee=normalizePgName(invitee||"");if(!invitee||invitee===normalizePgName(PG_ID)){sharedInlineActionFeedback(btn,"Scegli un altro PG Adulto registrato.",true);return;}btn&&(btn.disabled=true);sharedInlineActionFeedback(btn,"Invio invito…",false);window.fbInviteSharedFacility(fac._sharedId,invitee,PG_ID).then(function(res){if(!res||!res.ok){var code=res&&res.code?String(res.code):"errore sconosciuto";sharedInlineActionFeedback(btn,code==="already-member-or-invited"?"Questo PG è già Collaboratore o ha già un invito in attesa.":("Invito non riuscito — "+code+(code.indexOf("permission-denied")>=0?" · verifica le Rules v57 correnti":"")),true);return;}sharedInlineActionFeedback(btn,"Invito inviato a "+invitee+".",false);refreshSharedFacilitiesNow();}).catch(function(e){sharedInlineActionFeedback(btn,"Invito non riuscito — "+String((e&&e.code)||((e&&e.message)||"error")),true);}).finally(function(){if(btn&&document.body.contains(btn))btn.disabled=false;});}
   function sharedInlineActionFeedback(btn,message,isError){
     if(!btn)return;var old=btn.nextElementSibling;
     if(old&&old.classList&&old.classList.contains("shared-inline-action-feedback")){old.remove();}
@@ -5255,7 +5286,7 @@
       box.appendChild(el("div",null,"<b>"+meta.owner+"</b> ti invita a collaborare a «<b>"+meta.name+"</b>». Dopo l’accettazione la stessa struttura comparirà nel tuo Elfo e ogni modifica sarà sincronizzata per tutti i Collaboratori."));
       if(actionState.status==="error"){
         var errCode=String(actionState.code||"errore sconosciuto");
-        box.appendChild(el("div","shared-inline-error","⚠ L’invito non risulta accettato. Codice: <b>"+errCode+"</b>. "+(errCode.indexOf("permission-denied")>=0?"Pubblica le Rules v44 e riprova.":(errCode.indexOf("edit-session-missing")>=0?"Disconnetti, rientra con la Password e riprova.":"Riprova: se il codice resta uguale, comunicamelo."))));
+        box.appendChild(el("div","shared-inline-error","⚠ L’invito non risulta accettato. Codice: <b>"+errCode+"</b>. "+(errCode.indexOf("permission-denied")>=0?"Verifica che siano pubblicate le Rules v57 correnti e riprova.":(errCode.indexOf("edit-session-missing")>=0?"Disconnetti, rientra con la Password e riprova.":"Riprova: se il codice resta uguale, comunicamelo."))));
       }
       var actions=el("div","shared-alert-actions"),ok=el("button","action",actionState.status==="pending"?"Verifica…":"Accetta"),no=el("button","action danger","Rifiuta");
       ok.type=no.type="button";
@@ -5284,7 +5315,7 @@
       box.appendChild(el("strong",null,"🔔 Struttura condivisa aggiornata — "+meta.label));
       var latest=events.slice(-6),parts=latest.map(function(a){return "<b>"+String(a.actor||"Collaboratore")+"</b>: "+String(a.summary||"modifica")}),hidden=Math.max(0,events.length-latest.length),tail=hidden?" · <b>+"+hidden+" altre modifiche</b>":"";
       box.appendChild(el("div",null,"«<b>"+meta.name+"</b>» — "+parts.join(" · ")+tail));
-      if(seenState.status==="error"){var seenCode=String(seenState.code||"errore sconosciuto"),seenHint=seenCode.indexOf("edit-session-missing")>=0?" La sessione di modifica non è più attiva: disconnetti e reinserisci la Password.":(seenCode.indexOf("permission-denied")>=0||seenCode.indexOf("Missing or insufficient permissions")>=0?" Pubblica le Rules v44 e riprova.":"");box.appendChild(el("div","shared-inline-error","⚠ Non è stato possibile segnare l’avviso come visualizzato. Codice: <b>"+seenCode+"</b>."+seenHint));}
+      if(seenState.status==="error"){var seenCode=String(seenState.code||"errore sconosciuto"),seenHint=seenCode.indexOf("edit-session-missing")>=0?" La sessione di modifica non è più attiva: disconnetti e reinserisci la Password.":(seenCode.indexOf("permission-denied")>=0||seenCode.indexOf("Missing or insufficient permissions")>=0?" Verifica che siano pubblicate le Rules v57 correnti e riprova.":"");box.appendChild(el("div","shared-inline-error","⚠ Non è stato possibile segnare l’avviso come visualizzato. Codice: <b>"+seenCode+"</b>."+seenHint));}
       var ackLabel=seenState.status==="pending"?"Salvo…":(seenState.status==="error"?"Riprova Visualizzato":"✓ Visualizzato");
       var actions=el("div","shared-alert-actions"),go=el("button","action small elfo-readonly-safe","Apri "+meta.label),ack=el("button","action ghost small",ackLabel);
       go.type=ack.type="button";if(seenState.status==="pending"){ack.disabled=true;}
@@ -8861,7 +8892,10 @@
     String(section.raw||"").split(/\r?\n/).forEach(function(line){if(!/about|pinterest|scheda\s+png/i.test(taccLegacyPlain(line))){return;}taccLegacyLinks(line).forEach(function(x){if(!x.url||TACCUINO.links.some(function(y){return taccLegacyUrlKey(y&&y.url)===taccLegacyUrlKey(x.url);})){return;}TACCUINO.links.push({id:taccId("link"),label:x.label||"Link personale",url:x.url});stats.links++;});});
   }
   function taccLegacyMissionAliases(def){
-    var n=String(def&&def.name||"").replace(/\s*[—-].*$/," ").replace(/\s*\([^\)]*\)\s*$/," ").replace(/\s+/g," ").trim(),a=[n];
+    /* Il vecchio parser eliminava tutto dal primo "-" in poi: con nomi reali
+       come "Il So-Tutto-Sull'Argomento" produceva l'alias troppo generico
+       "Il So". Tagliamo solo i separatori di livello scritti con spazi. */
+    var n=String(def&&def.name||"").replace(/\s+—\s+.*$/," ").replace(/\s+-\s+.*$/," ").replace(/\s*\([^\)]*\)\s*$/," ").replace(/\s+/g," ").trim(),a=[n];
     if(/Gli Amiconi/i.test(n)){a.push("Gli amiconi","I Compari");}
     if(/I Compari/i.test(n)){a.push("I compari","Gli Amiconi");}
     /* Passaggio VII anno → Adulto: il conteggio dei PG diversi è il secondo
@@ -9254,7 +9288,7 @@
     var p = el("div", "panel");
     p.appendChild(el("h2", null, "I tuoi Post"));
     p.appendChild(el("div", "guide-text",
-      "Organizzati per Mese: apri un Mese e aggiungi i post al suo interno, senza doverlo riscrivere ogni volta. Ogni post con link riceve un <b>numero globale permanente</b>: una volta assegnato non cambia più, anche se in futuro il Narratore archivia e rimuove dal database mesi molto vecchi. I conteggi di Laboratorio, Serra e Riserva possono quindi continuare in sicurezza da un mese all'altro."));
+      "Organizzati per Mese: apri un Mese e aggiungi i post al suo interno, senza doverlo riscrivere ogni volta. Ogni post con link riceve un <b>numero globale permanente</b>: una volta assegnato non cambia più, anche se in futuro il Narratore archivia e rimuove dal database mesi molto vecchi. È <b>qui</b> che trovi il N. globale da indicare in Pulizia del Calderone, Coltivazioni e Allevamento; i relativi conteggi avanzano poi automaticamente. I conteggi di Laboratorio, Serra e Riserva possono quindi continuare in sicurezza da un mese all'altro."));
     var legacyDupMonths = duplicateMonthNames();
     if(legacyDupMonths.length){
       p.appendChild(el("div", "warning-alert", "⚠ Sono presenti Mesi con lo stesso nome già salvati in precedenza: <b>" + legacyDupMonths.join(", ") + "</b>. Rinomina una delle voci per evitare ambiguità nel Riepilogo mensile del Narratore."));
@@ -9623,6 +9657,7 @@
       b.variabileSu=normalizeVariableTarget(b.variabileSu);
       b.utilizziManuali=Math.max(0,parseInt(b.utilizziManuali,10)||0);
       if(b.maxUtilizzi>0){b.utilizziManuali=Math.min(b.utilizziManuali,Math.max(0,b.maxUtilizzi-b.usatiIniziali));}
+      b.aggiornaBagaglio=b.aggiornaBagaglio!==false;
       mese.bonusAggiuntivi[i]=b;
     }
     return mese.bonusAggiuntivi;
@@ -9662,7 +9697,8 @@
         usatiIniziali:Math.max(0,parseInt(b.usatiIniziali,10)||0),
         usatiConfermati:b.usatiConfermati===true,
         variabileSu:normalizeVariableTarget(b.variabileSu),
-        utilizziManuali:Math.max(0,parseInt(b.utilizziManuali,10)||0)
+        utilizziManuali:Math.max(0,parseInt(b.utilizziManuali,10)||0),
+        aggiornaBagaglio:b.aggiornaBagaglio!==false
       });
     }
     return out;
@@ -9763,9 +9799,7 @@
       if(!post||!isValidPostLink(post.link)){continue;}
       localNo++;
       if(!postUsesLimitedBonus(post,b)){continue;}
-      var globalNo=parseInt(post.globalNo,10);
       var label="Post "+localNo;
-      if(!isNaN(globalNo)&&globalNo>0){label+=" (N. globale "+globalNo+")";}
       out.push(label);
     }
     return out;
@@ -9815,6 +9849,7 @@
     for(var i=0;i<bonuses.length;i++){
       var b=bonuses[i];
       if((b.modalita!=="posts"&&b.modalita!=="manual")||!(b.maxUtilizzi>0)){continue;}
+      if(b.aggiornaBagaglio===false){continue;}
       var used=bonusUsedThisMonth(b,posts);
       if(used<=0){continue;}
       var current=bonusCurrentUses(b,posts);
@@ -10501,7 +10536,7 @@
     staffTokenHistorical=staffTokenMonthHasHistory(postiDelMese,meseObj);
     var staffTokenColumn=STAFF_TOKEN_STATE.associated||staffTokenHistorical;
     var staffTokenHead=staffTokenColumn?"<th>ST</th>":"";
-    tblLive.appendChild(el("tr", null, "<th>N.</th><th>Link</th><th>Galeoni accumulati</th><th>N. globale</th><th>Bonus</th>"+staffTokenHead+"<th>Totale Bonus</th>"));
+    tblLive.appendChild(el("tr", null, "<th>N.</th><th>Link</th><th>Galeoni accumulati</th><th>Bonus</th>"+staffTokenHead+"<th>Totale Bonus</th>"));
 
     var showUpToLive = postiDelMese.length;
     if(showUpToLive < 1){ showUpToLive = 0; }
@@ -10525,16 +10560,6 @@
       }
       tr.appendChild(el("td","g-value",(cumulativeG(linkedUpTo) + eventBonusGaleoniTotal(meseObj, postiDelMese, li + 1)) + " G"));
 
-      var globalTd=el("td");
-      var globalNo=parseInt(lp.globalNo,10);
-      var monthTone=Math.max(0,MESI.indexOf(meseObj)) % 3;
-      if(!isNaN(globalNo) && globalNo>0){
-        globalTd.appendChild(el("span","global-post-number global-month-tone-"+monthTone,String(globalNo)));
-      }else{
-        globalTd.appendChild(el("span","cb-bonus-none","—"));
-      }
-      tr.appendChild(globalTd);
-
       tr.appendChild(makeEventBonusExclusionCell(lp,meseObj,bonusLocked));
       if(staffTokenColumn){
         tr.appendChild(STAFF_TOKEN_STATE.associated
@@ -10553,7 +10578,7 @@
     }
 
     if(showUpToLive === 0 || totFilled===0){
-      p.appendChild(el("p", "small-note", "Nessun post ancora in questo Mese: aggiungine allo Step precedente per vedere qui Galeoni, N. globale, Bonus e totali."));
+      p.appendChild(el("p", "small-note", "Nessun post ancora in questo Mese: aggiungine allo Step precedente per vedere qui Galeoni, Bonus e totali."));
     } else {
       p.appendChild(el("h4", null, "Progressivo del mese"));
       p.appendChild(tblLive);
@@ -11758,8 +11783,7 @@
     var rm=el("button","action danger small","Rimuovi"); rm.addEventListener(EV,function(){lab.POSTAZIONI=lab.POSTAZIONI.filter(function(x){return x.id!==postaz.id;});scheduleSave(0);renderAll();}); actionWrap.appendChild(rm); h.appendChild(actionWrap); card.appendChild(h);
     var sharedResp=buildSharedResponsibleField(postaz,lab,"Creatore / responsabile della Pozione");if(sharedResp){card.appendChild(sharedResp);}
 
-    var row0=el("div","row"); var dNum=el("div"); dNum.appendChild(el("label",null,"Numero Postazione")); var iNum=el("input"); iNum.type="text"; iNum.value=postaz.numero; iNum.addEventListener("change",function(){postaz.numero=iNum.value;renderAll();}); dNum.appendChild(iNum); row0.appendChild(dNum);
-    var dGlobalStart=el("div"); dGlobalStart.appendChild(el("label",null,"Dal post globale n°")); var iGlobalStart=el("input"); iGlobalStart.type="number"; iGlobalStart.min="1"; iGlobalStart.step="1"; iGlobalStart.value=Math.max(1,num(postaz.startIndex,nextGlobalPostNumber())); iGlobalStart.addEventListener("change",function(){var proposed=Math.max(1,num(iGlobalStart.value,1));if(!validateGlobalIntervalOrAlert(proposed,Math.max(0,num(postaz.postRichiesti,0)))){iGlobalStart.value=postaz.startIndex;return;}postaz.startIndex=proposed;scheduleSave(0);renderAll();}); dGlobalStart.appendChild(iGlobalStart); row0.appendChild(dGlobalStart);
+    var row0=el("div","row"); var dNum=el("div"); dNum.appendChild(el("label",null,"Numero Postazione")); var iNum=el("input"); iNum.type="text"; iNum.value=postaz.numero; iNum.addEventListener("change",function(){postaz.numero=iNum.value;scheduleSave(0);renderAll();}); dNum.appendChild(iNum); row0.appendChild(dNum);
     card.appendChild(row0);
 
     var row1=el("div","row"); var dDataT=el("div"); dDataT.appendChild(el("label",null,"Data di creazione (GG/MM/AAAA)")); var iDataT=buildDateInput(postaz.dataTesto,function(v){postaz.dataTesto=v;}); dDataT.appendChild(iDataT); row1.appendChild(dDataT);
@@ -11901,13 +11925,20 @@
     iEsito.addEventListener("input",function(){postaz.imbottPercent=iEsito.value;});
     dEsito.appendChild(iEsito); row.appendChild(dEsito);
 
-    var dPost=el("div"); dPost.appendChild(el("label",null,"N° di post d'attesa"));
+    var dPost=el("div"); dPost.appendChild(el("label",null,"Post necessari"));
     var iPost=el("input"); iPost.type="number"; iPost.min="0"; iPost.step="1";
     iPost.value=Math.max(0,num(postaz.postRichiesti,0));
     iPost.addEventListener("change",function(){var proposed=Math.max(0,num(iPost.value,0));if(!validateGlobalIntervalOrAlert(postaz.startIndex,proposed)){iPost.value=postaz.postRichiesti;return;}postaz.postRichiesti=proposed;scheduleSave(0);renderAll();});
     dPost.appendChild(iPost); row.appendChild(dPost);
 
+    var dStart=el("div"); dStart.appendChild(el("label",null,"Dal post globale n°"));
+    var iStart=el("input"); iStart.type="number"; iStart.min="1"; iStart.step="1";
+    iStart.value=Math.max(1,num(postaz.startIndex,nextGlobalPostNumber()));
+    iStart.addEventListener("change",function(){var proposed=Math.max(1,num(iStart.value,1));if(!validateGlobalIntervalOrAlert(proposed,Math.max(0,num(postaz.postRichiesti,0)))){iStart.value=postaz.startIndex;return;}postaz.startIndex=proposed;scheduleSave(0);renderAll();});
+    dStart.appendChild(iStart); row.appendChild(dStart);
+
     wrap.appendChild(row);
+    wrap.appendChild(el("p","small-note","Il N. globale si trova in <b>I tuoi Post</b> del PG responsabile. Non devi registrare qui i singoli post: la Pulizia avanza automaticamente quando quei Post vengono aggiunti all’Elfo."));
 
     var modRow=el("div","entity-secondary-field");
     modRow.appendChild(el("label",null,"Modificatori applicati (facoltativo)"));
@@ -12489,7 +12520,7 @@
     iPost.addEventListener("change", function(){
       var proposed=Math.max(0,num(iPost.value,0));
       if(!validateGlobalIntervalOrAlert(sub.startIndex,proposed)){iPost.value=sub.postRichiesti;return;}
-      sub.postRichiesti=proposed;renderAll();
+      sub.postRichiesti=proposed;scheduleSave(0);renderAll();
     });
     dPost.appendChild(iPost); row.appendChild(dPost);
 
@@ -12498,7 +12529,7 @@
     iStart.addEventListener("change", function(){
       var proposed=Math.max(1,num(iStart.value,1));
       if(!validateGlobalIntervalOrAlert(proposed,sub.postRichiesti)){iStart.value=sub.startIndex;return;}
-      sub.startIndex=proposed;renderAll();
+      sub.startIndex=proposed;scheduleSave(0);renderAll();
     });
     dStart.appendChild(iStart); row.appendChild(dStart);
     wrap.appendChild(row);
@@ -12608,7 +12639,7 @@
     if(!targets.length){return null;}
     var box=el("div","guide-text current-global-counter");
     box.appendChild(el("div","structure-block-head","Avvio conteggi — "+stage.label));
-    box.appendChild(el("p","small-note","Imposta qui il numero del primo Post globale da conteggiare. Le stesse caselle restano disponibili anche dentro il dettaglio del singolo Ciclo."));
+    box.appendChild(el("p","small-note","Il N. globale si trova in <b>I tuoi Post</b> del PG responsabile. Imposta qui il primo Post da conteggiare: il progresso avanza automaticamente. Le stesse caselle restano disponibili anche dentro il dettaglio del singolo Ciclo."));
     targets.forEach(function(t){
       var sub=normalizeSubEntry(t.sub),row=el("div","row");
       var dName=el("div");dName.appendChild(el("label",null,"Conteggio"));dName.appendChild(el("div","shared-responsible-name","<b>"+t.label+"</b>"));row.appendChild(dName);
