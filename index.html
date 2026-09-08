@@ -1,5 +1,6 @@
 
 <!DOCTYPE html>
+<!-- v158 — strutture: numerazione Postazioni per singolo Laboratorio + avvisi solo per import automatici esterni; 08/09/2026 -->
 <!-- v157 — macro-audit Laboratori/contatori: fix condivisione Collaboratori, N. globale in I tuoi Post, Pulizia più chiara; include tutti i fix v156; 08/09/2026 -->
 <!-- v156 — Dispensa: alias Nogtail/Hodag + nome Pugnacio uniformato; include tutti i fix v155, 07/09/2026 -->
 <!-- v155 — Bonus: fix Firestore __primary__, contatore Usi per riga, editor semplificato, rerender stabile; ST invariati, 07/09/2026 -->
@@ -4929,6 +4930,27 @@
   }
   function sharedMakeEntityId(prefix){return "sh_"+String(prefix||"e").replace(/[^a-z0-9_-]/gi,"_")+"_"+Date.now().toString(36)+"_"+Math.random().toString(36).slice(2,9);}
   function sharedNextPotionNumber(fac){var max=0;function scan(list){(Array.isArray(list)?list:[]).forEach(function(x){var n=parseInt(x&&x.numero,10);if(n>max)max=n;});}scan(fac&&fac.POSTAZIONI);scan(fac&&fac.ARCHIVIO_POSTAZIONI);return max+1;}
+  function normalizeLocalLabPotionNumbers(fac){
+    if(!fac||fac._sharedRemote||fac._localPotionNumberingV1===true){return false;}
+    var active=Array.isArray(fac.POSTAZIONI)?fac.POSTAZIONI:[], archived=Array.isArray(fac.ARCHIVIO_POSTAZIONI)?fac.ARCHIVIO_POSTAZIONI:[];
+    var all=active.concat(archived),changed=false;
+    if(all.length){
+      var hasOne=all.some(function(x){return parseInt(x&&x.numero,10)===1;});
+      /* Se non esiste un n°1 è il caso tipico della vecchia numerazione globale:
+         convertiamo una sola volta in numerazione locale. Se invece il Laboratorio
+         ha già un n°1, preserviamo eventuali buchi storici (postazioni rimosse). */
+      if(!hasOne){
+        var ordered=all.slice().sort(function(x,y){
+          var nx=parseInt(x&&x.numero,10),ny=parseInt(y&&y.numero,10);
+          if(!(nx>0))nx=Number.MAX_SAFE_INTEGER;if(!(ny>0))ny=Number.MAX_SAFE_INTEGER;
+          if(nx!==ny)return nx-ny;return String(x&&x.id||'').localeCompare(String(y&&y.id||''));
+        });
+        for(var i=0;i<ordered.length;i++){if(parseInt(ordered[i].numero,10)!==i+1){ordered[i].numero=i+1;changed=true;}}
+      }
+    }
+    fac._localPotionNumberingV1=true;
+    return true;
+  }
   function sharedStampSubEntriesResponsible(entity,pg){
     pg=normalizePgName(pg||"");if(!entity||!pg||!entity.cicli||typeof entity.cicli!=="object")return;
     Object.keys(entity.cicli).forEach(function(k){var c=entity.cicli[k]||{};if(c.evento&&typeof c.evento==="object"&&!String(c.evento.responsabilePg||"").trim()){c.evento.responsabilePg=pg;}if(Array.isArray(c.list)){c.list.forEach(function(sub){if(sub&&typeof sub==="object"&&!String(sub.responsabilePg||"").trim()){sub.responsabilePg=pg;}});}});
@@ -5437,7 +5459,7 @@
 
   function newLaboratorio(){
     labCounter = labCounter + 1;
-    return { id: labCounter, nome:"", registrato:"si", collaboratori:"", posizione:"", descrizione:"", protezioni:"", protezioniIllegali:{primoPostLink:"",attive:{}}, posti:"", calderoniMax:0, distillatoriMax:0, POSTAZIONI: [], ARCHIVIO_POSTAZIONI: [] };
+    return { id: labCounter, nome:"", registrato:"si", collaboratori:"", posizione:"", descrizione:"", protezioni:"", protezioniIllegali:{primoPostLink:"",attive:{}}, posti:"", calderoniMax:0, distillatoriMax:0, POSTAZIONI: [], ARCHIVIO_POSTAZIONI: [], _localPotionNumberingV1:true };
   }
   function plantFacilityType(fac){return fac&&String(fac.tipoStruttura||"")==="valigia"?"valigia":"serra";}
   function plantFacilityLabel(fac){return plantFacilityType(fac)==="valigia"?"Valigia Magica":"Serra";}
@@ -6810,6 +6832,7 @@
     for(var li=0;li<LABORATORI.length;li++){
       if(!Array.isArray(LABORATORI[li].POSTAZIONI)){ LABORATORI[li].POSTAZIONI=[]; DATA_DIRTY=true; }
       if(!Array.isArray(LABORATORI[li].ARCHIVIO_POSTAZIONI)){ LABORATORI[li].ARCHIVIO_POSTAZIONI=[]; DATA_DIRTY=true; }
+      if(normalizeLocalLabPotionNumbers(LABORATORI[li])){DATA_DIRTY=true;}
     }
     if(data.labCounter){ labCounter = data.labCounter; }
     if(data.postazCounter){ postazCounter = data.postazCounter; }
@@ -6825,7 +6848,9 @@
     if(data.creaturaCounter){ creaturaCounter = data.creaturaCounter; }
     if(data.medichCounter){ medichCounter = data.medichCounter; }
     if(Array.isArray(data.IMPORT_HISTORY)){ IMPORT_HISTORY = data.IMPORT_HISTORY.map(function(x){return String(x);}); }
-    EXTERNAL_IMPORT_NOTICE=normalizeExternalImportNotice(data.EXTERNAL_IMPORT_NOTICE);
+    var _rawExternalImportNotice=data.EXTERNAL_IMPORT_NOTICE;
+    EXTERNAL_IMPORT_NOTICE=normalizeExternalImportNotice(_rawExternalImportNotice);
+    if(_rawExternalImportNotice&&!EXTERNAL_IMPORT_NOTICE){DATA_DIRTY=true;}
     if(data.STUDENT_IMPORT_STATE && typeof data.STUDENT_IMPORT_STATE==="object" && !Array.isArray(data.STUDENT_IMPORT_STATE)){
       var sis=data.STUDENT_IMPORT_STATE;
       var rawOffset=(sis.offset===null||sis.offset===undefined||String(sis.offset).trim()==="")?null:parseInt(sis.offset,10);
@@ -7872,7 +7897,7 @@
     }
     if(found||updated){
       var medMsg=(found?found+" guarigione"+(found===1?" importata":"i importate"):"")+(found&&updated?" e ":"")+(updated?updated+" aggiornata"+(updated===1?"":"e"):"")+" da Medimagia.";
-      recordExternalImportNotice("Medimagia",medMsg,"posts");
+      if(!manual){recordExternalImportNotice("Medimagia",medMsg,"posts");}
       /* La guarigione è già stata salvata nel Taccuino/cloud dedicato. L'avviso globale
          non deve generare una seconda scrittura passiva sul documento PG. */
       DATA_DIRTY=true;
@@ -9148,11 +9173,17 @@
 
 
 
+  function legacyManualImportNoticeSource(source){
+    return /^(Generatore Ricerca Ingredienti|Generatore di Pozioni|Tool di Erbologia|Tool di Magizoologia|Elfo Studente)$/i.test(String(source||"").trim());
+  }
   function normalizeExternalImportNotice(x){
     if(!x||typeof x!=="object"||Array.isArray(x)){return null;}
-    var msg=String(x.message||"").trim();
+    var msg=String(x.message||"").trim(),source=String(x.source||"un altro tool").trim()||"un altro tool";
     if(!msg){return null;}
-    return {source:String(x.source||"un altro tool").trim()||"un altro tool",message:msg,step:String(x.step||""),at:String(x.at||"")};
+    /* Le versioni precedenti creavano lo stesso avviso anche dopo un incolla/import
+       manuale dentro l'Elfo. I vecchi avvisi riconoscibili vengono scartati. */
+    if(String(x.origin||"")!=="external"&&legacyManualImportNoticeSource(source)){return null;}
+    return {source:source,message:msg,step:String(x.step||""),at:String(x.at||""),origin:"external"};
   }
   function externalImportNoticePgName(){
     try{
@@ -9168,7 +9199,7 @@
   }
   function loadExternalImportNoticeLocal(){
     var key=externalImportNoticeStorageKey();if(!key){return null;}
-    try{return normalizeExternalImportNotice(JSON.parse(localStorage.getItem(key)||"null"));}catch(e){return null;}
+    try{var raw=JSON.parse(localStorage.getItem(key)||"null"),norm=normalizeExternalImportNotice(raw);if(raw&&!norm){localStorage.removeItem(key);}return norm;}catch(e){return null;}
   }
   function persistExternalImportNoticeLocal(value){
     var key=externalImportNoticeStorageKey();if(!key){return;}
@@ -9178,7 +9209,7 @@
     }catch(e){}
   }
   function recordExternalImportNotice(source,message,step){
-    EXTERNAL_IMPORT_NOTICE={source:String(source||"un altro tool"),message:String(message||"Importazione completata."),step:String(step||currentStep||""),at:new Date().toISOString()};
+    EXTERNAL_IMPORT_NOTICE={source:String(source||"un altro tool"),message:String(message||"Importazione completata."),step:String(step||currentStep||""),at:new Date().toISOString(),origin:"external"};
     persistExternalImportNoticeLocal(EXTERNAL_IMPORT_NOTICE);
   }
   function buildExternalImportNotice(){
@@ -11412,7 +11443,6 @@
     var bulkBtn=el("button","action small","Importa Ingredienti");
     bulkBtn.addEventListener(EV,function(){
       var bulkRaw=String(bulk.value||"");
-      var fromIngredientGenerator=/(?:FELIX_ELFO_[A-Z_]*INGREDIENT|RISULTATI\s+RACCOLTA\s*:|GENERATORE\s+RICERCA\s+INGREDIENTI)/i.test(bulkRaw);
       var rawLines=splitDispensaBulkText(bulkRaw),errs=[],added=0,doses=0;
       for(var bi=0;bi<rawLines.length;bi++){
         var parsed=parseDispensaBulkLine(rawLines[bi]);
@@ -11429,9 +11459,6 @@
         DISPENSA_IMPORT_REPORT={added:0,doses:0,errors:[],empty:true};
       }
       if(added){
-        if(fromIngredientGenerator){
-          recordExternalImportNotice("Generatore Ricerca Ingredienti","Importati "+added+(added===1?" Ingrediente in Dispensa.":" Ingredienti in Dispensa."),"dispensa");
-        }
         bulk.value="";
         resizeBulkTextarea();
         scheduleSave(0);
@@ -11585,7 +11612,7 @@
   function newPostazione(){
     postazCounter = postazCounter + 1;
     return {
-      id: postazCounter, numero: postazCounter,
+      id: postazCounter, numero: 0,
       dataTesto: "", dataLink: "", nomePozione: "", classificazione: "X", tipologia: "Generica",
       calderoneOggetti: "//",
       prepLink: "", prepEsito: "riuscita", prepValore: 0,
@@ -11611,7 +11638,7 @@
   }
   function buildPotionImportBox(lab){
     var det=el("details","illegal-import-box");keepDetailsState(det,"laboratorio:import-pozione:"+lab.id,false);det.appendChild(el("summary",null,"Importa Pozione dal Generatore"));det.appendChild(el("p","small-note","Incolla il blocco FELIX_ELFO_POZIONE_V1. Vengono importati anche Legalità, professione usata nel controllo, protezioni ed esiti già risolti: l’Elfo non rilancia i dadi illegali."));
-    var ta=el("textarea");ta.placeholder="FELIX_ELFO_POZIONE_V1\nDESTINAZIONE: Laboratorio/Postazione\nNome Pozione: ...\nLegalità: Illegale\n...";det.appendChild(ta);var btn=el("button","action","Importa Pozione");btn.type="button";btn.addEventListener(EV,function(){labCapacityFromLegacyPosti(lab);if(lab.calderoniMax>0&&lab.POSTAZIONI.length>=lab.calderoniMax){alert("Hai già occupato tutte le Postazioni/Calderoni disponibili.");return;}var r=potionFromTransferText(ta.value);if(!r.ok){alert("Importazione non eseguita: "+r.error);return;}if(lab._sharedRemote){r.postazione.id=sharedMakeEntityId("poz");r.postazione.numero=sharedNextPotionNumber(lab);r.postazione.responsabilePg=String(PG_ID||"");}lab.POSTAZIONI.push(r.postazione);applyImportedProtectionsToFacility(lab,r.postazione.illegalita);recordExternalImportNotice("Generatore di Pozioni","Pozione importata: "+String(r.postazione.nomePozione||r.postazione.nome||"nuova Pozione")+".","laboratorio");scheduleSave(0);renderAll();alert("Pozione importata. I controlli illegali presenti sono stati salvati come storico e non verranno rilanciati.");});det.appendChild(btn);return det;
+    var ta=el("textarea");ta.placeholder="FELIX_ELFO_POZIONE_V1\nDESTINAZIONE: Laboratorio/Postazione\nNome Pozione: ...\nLegalità: Illegale\n...";det.appendChild(ta);var btn=el("button","action","Importa Pozione");btn.type="button";btn.addEventListener(EV,function(){labCapacityFromLegacyPosti(lab);if(lab.calderoniMax>0&&lab.POSTAZIONI.length>=lab.calderoniMax){alert("Hai già occupato tutte le Postazioni/Calderoni disponibili.");return;}var r=potionFromTransferText(ta.value);if(!r.ok){alert("Importazione non eseguita: "+r.error);return;}r.postazione.numero=sharedNextPotionNumber(lab);if(lab._sharedRemote){r.postazione.id=sharedMakeEntityId("poz");r.postazione.responsabilePg=String(PG_ID||"");}lab.POSTAZIONI.push(r.postazione);applyImportedProtectionsToFacility(lab,r.postazione.illegalita);scheduleSave(0);renderAll();alert("Pozione importata. I controlli illegali presenti sono stati salvati come storico e non verranno rilanciati.");});det.appendChild(btn);return det;
   }
 
   function renderLaboratorioStep(container){
@@ -11746,7 +11773,7 @@
         alert("Hai già occupato tutte le Postazioni/Calderoni disponibili in questo Laboratorio.");
         return;
       }
-      var nuovaPostazione=newPostazione();if(lab._sharedRemote){nuovaPostazione.id=sharedMakeEntityId("poz");nuovaPostazione.numero=sharedNextPotionNumber(lab);nuovaPostazione.responsabilePg=String(PG_ID||"");}lab.POSTAZIONI.push(nuovaPostazione);scheduleSave(0);renderAll();
+      var nuovaPostazione=newPostazione();nuovaPostazione.numero=sharedNextPotionNumber(lab);if(lab._sharedRemote){nuovaPostazione.id=sharedMakeEntityId("poz");nuovaPostazione.responsabilePg=String(PG_ID||"");}lab.POSTAZIONI.push(nuovaPostazione);scheduleSave(0);renderAll();
     });
     det.appendChild(addBtn);
 
@@ -11782,9 +11809,6 @@
     var archP=el("button","action small","Archivia Pozione conclusa"); archP.addEventListener(EV,function(){if(!Array.isArray(lab.ARCHIVIO_POSTAZIONI)){lab.ARCHIVIO_POSTAZIONI=[];}lab.POSTAZIONI=lab.POSTAZIONI.filter(function(x){return x.id!==postaz.id;});archiveStamp(postaz);lab.ARCHIVIO_POSTAZIONI.push(postaz);scheduleSave(0);renderAll();}); actionWrap.appendChild(archP);
     var rm=el("button","action danger small","Rimuovi"); rm.addEventListener(EV,function(){lab.POSTAZIONI=lab.POSTAZIONI.filter(function(x){return x.id!==postaz.id;});scheduleSave(0);renderAll();}); actionWrap.appendChild(rm); h.appendChild(actionWrap); card.appendChild(h);
     var sharedResp=buildSharedResponsibleField(postaz,lab,"Creatore / responsabile della Pozione");if(sharedResp){card.appendChild(sharedResp);}
-
-    var row0=el("div","row"); var dNum=el("div"); dNum.appendChild(el("label",null,"Numero Postazione")); var iNum=el("input"); iNum.type="text"; iNum.value=postaz.numero; iNum.addEventListener("change",function(){postaz.numero=iNum.value;scheduleSave(0);renderAll();}); dNum.appendChild(iNum); row0.appendChild(dNum);
-    card.appendChild(row0);
 
     var row1=el("div","row"); var dDataT=el("div"); dDataT.appendChild(el("label",null,"Data di creazione (GG/MM/AAAA)")); var iDataT=buildDateInput(postaz.dataTesto,function(v){postaz.dataTesto=v;}); dDataT.appendChild(iDataT); row1.appendChild(dDataT);
     var dDataL=el("div"); dDataL.appendChild(el("label",null,"Link della role")); var iDataL=el("input"); iDataL.type="text"; iDataL.value=postaz.dataLink; iDataL.addEventListener("input",function(){postaz.dataLink=iDataL.value;}); dDataL.appendChild(iDataL); row1.appendChild(dDataL); card.appendChild(row1);
@@ -12285,8 +12309,6 @@
         imported++;
       }
       if(imported>0){
-        var sourceTool=entityLabel==="Pianta"?"Tool di Erbologia":"Tool di Magizoologia";
-        recordExternalImportNotice(sourceTool,"Importazione completata: "+imported+(imported===1?" "+entityLabel+" aggiunta.":" elementi aggiunti."),currentStep);
         scheduleSave(0);
         var msg="Importazione completata: "+imported+(imported===1?" "+entityLabel+" aggiunta.":" elementi aggiunti.");
         if(errors.length){msg+="\n\nDa controllare:\n- "+errors.join("\n- ");}
@@ -13772,7 +13794,6 @@
       var partLabels={months:"Mesi/Post",calderoni:"Pozioni",piante:"Piante",creature:"Creature",dispensa:"Dispensa"};
       var skippedLabels=[];Object.keys(requested).forEach(function(k){if(requested[k]&&newParts.indexOf(k)<0)skippedLabels.push(partLabels[k]||k);});
       ultimoImportRisultato = "importazione completata: "+importedLabels.join(", ")+"."+(skippedLabels.length?" Sezioni già trasferite e quindi saltate: "+skippedLabels.join(", ")+".":"");
-      recordExternalImportNotice("Elfo Studente","Dati importati: "+(importedLabels.length?importedLabels.join(", "):"nessun nuovo elemento")+".","importa");
       scheduleSave(0);renderAll();
     });
     p.appendChild(btn);
