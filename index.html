@@ -42,6 +42,8 @@
 <!-- elfo_adulto_v241 — Taccuino: permission-denied non ritenta; copia locale esplicitata. Fix fallback conflitto generale: rimosso riferimento `deleted` fuori scope. Richiede Rules v60 per cloudRevision. -->
 <!-- elfo_adulto_v242 — UI Taccuino cloud silenziosa: nessun messaggio per attesa/sync riuscita; solo errori/avvisi reali. -->
 <!-- elfo_adulto_v243 — fix UI Taccuino silenziosa: usa TACC_CLOUD_TEXT/TACC_CLOUD_ERROR originali e nessun renderAll dal setter. -->
+<!-- elfo_adulto_v244 — accrediti Narratore autoritativi: ricarica cloud automatica senza popup; veri conflitti player invariati. -->
+<!-- elfo_adulto_v245 — strutture condivise: gestione rapida in Connessione anche con tick disattivato; fallback eliminazione/uscita se una scheda Laboratorio non renderizza. -->
 <!DOCTYPE html>
 <!-- v174 — rimosso promemoria Lista della Spesa alla chiusura Role fuori conteggio; 08/09/2026 -->
 <!-- v165 — fix mirato post-password: ricalcolo altezza ritardato dopo sblocco modifica; bridge sezioni invariato e isolabile nel parent; 08/09/2026 -->
@@ -6179,11 +6181,13 @@
     /* Salva SUBITO la copia locale che Firebase ha rifiutato. Non aspettiamo
        cambio pagina/pagehide: anche una chiusura anomala subito dopo il conflitto
        deve lasciare un Recovery completo di Camera Blindata, Dispensa e strutture. */
-    try{
-      if(PERSONAL_PENDING_LOCAL_TIMER){clearTimeout(PERSONAL_PENDING_LOCAL_TIMER);PERSONAL_PENDING_LOCAL_TIMER=null;}
-      DATA_DIRTY=true;
-      personalPendingStore(collectState(),code||"revision-conflict");
-    }catch(e){console.error("Protezione locale immediata del conflitto fallita",e);}
+    if(code!=="accredited-month-conflict"){
+      try{
+        if(PERSONAL_PENDING_LOCAL_TIMER){clearTimeout(PERSONAL_PENDING_LOCAL_TIMER);PERSONAL_PENDING_LOCAL_TIMER=null;}
+        DATA_DIRTY=true;
+        personalPendingStore(collectState(),code||"revision-conflict");
+      }catch(e){console.error("Protezione locale immediata del conflitto fallita",e);}
+    }
     document.querySelectorAll("#revision-conflict-overlay").forEach(function(x){if(x&&x.parentNode){x.remove();}});
     fbStatusText=code==="accredited-month-conflict"?"Stato di accredito aggiornato · sincronizzazione automatica…":"Dati più recenti trovati · sincronizzazione automatica…";
     updateFbIndicator();
@@ -6219,6 +6223,19 @@
   }
 
   function lockAfterRevisionConflict(code, forceOverlay){
+    /* Lo stato di accredito deciso dal Narratore è autoritativo. Se cambia mentre
+       l'Elfo è aperto, ricarichiamo automaticamente il cloud senza chiedere al
+       player se mantenere una versione locale del Mese ormai accreditato. */
+    if(code==="accredited-month-conflict"){
+      if(fbSaveTimer){clearTimeout(fbSaveTimer);fbSaveTimer=null;}
+      Promise.resolve(autoReloadLatestAfterConflict(code)).then(function(ok){
+        if(!ok){lockAfterRevisionConflict("revision-conflict",true);}
+      }).catch(function(e){
+        console.error("Ricaricamento cloud dopo accredito fallito",e);
+        lockAfterRevisionConflict("revision-conflict",true);
+      });
+      return;
+    }
     /* Un callback appartenente a un vecchio tentativo può arrivare dopo che abbiamo
        già caricato/raggiunto una revisione più nuova. In quel caso NON deve riaprire
        l'overlay né aggiungere un altro strato scuro. */
@@ -8174,6 +8191,37 @@
     },true);
   }
 
+  function buildSharedFacilityQuickManager(){
+    if(!fbConnected)return null;
+    var ids=Object.keys(SHARED_FACILITY_DOCS||{});
+    if(!ids.length)return null;
+    var wrap=el("div","card shared-quick-manager");
+    wrap.appendChild(el("h4",null,"Strutture condivise attive"));
+    wrap.appendChild(el("p","small-note","Le strutture condivise restano disponibili anche se togli il tick della relativa sezione: il tick nasconde soltanto le strutture personali. Da qui puoi eliminare una struttura di cui sei Proprietario oppure lasciare una collaborazione."));
+    ids.forEach(function(id){
+      var data=SHARED_FACILITY_DOCS[id]||{},kind=String(data.kind||"");
+      if(["laboratorio","serra","riserva"].indexOf(kind)<0)return;
+      var fac=null,list=sharedArrayForKind(kind);
+      for(var i=0;i<list.length;i++){if(list[i]&&String(list[i]._sharedId||"")===String(id)){fac=list[i];break;}}
+      if(!fac){fac=sharedDecorateFacility(id,data);}
+      var row=el("div","shared-invite-row");
+      var meta=el("div");
+      var kindLabel=sharedKindLabel(kind);
+      meta.appendChild(el("strong",null,String(fac.nome||kindLabel+" senza nome")));
+      meta.appendChild(el("div","small-note",kindLabel+" · "+(sharedIsOwner(fac)?"Sei il Proprietario":"Collaborazione con "+String(fac._sharedOwnerId||"Proprietario"))));
+      row.appendChild(meta);
+      var btn=el("button","action danger small",sharedIsOwner(fac)?"Elimina per tutti":"Lascia struttura");
+      btn.type="button";btn.disabled=!EDIT_UNLOCKED;
+      btn.addEventListener(EV,function(){
+        if(!EDIT_UNLOCKED){alert("Inserisci prima la Password di modifica.");return;}
+        if(sharedIsOwner(fac)){sharedDeleteFacility(fac,kindLabel,btn);}
+        else{sharedLeaveFacility(fac,btn);}
+      });
+      row.appendChild(btn);wrap.appendChild(row);
+    });
+    return wrap;
+  }
+
   function renderConnessioneStep(container){
     var p=el("div","panel");p.appendChild(el("h2",null,fbConnected?"Dati del Personaggio":"Scegli il Personaggio"));
     if(!fbConnected){
@@ -8309,10 +8357,11 @@
       var currentBytes=stateSizeBytes(collectState());if(currentBytes>700000){p.appendChild(el("p","save-size-warning","⚠ Salvataggio già piuttosto grande: "+sizeLabel(currentBytes)+". Conviene chiedere al Narratore una pulizia periodica dell’archivio."));}
       if(EDIT_UNLOCKED){p.appendChild(buildSocialValuesEditor());}else{p.appendChild(el("div","elfo-readonly-note","🔒 <b>Parametri Sociali privati</b> — Popolarità, Prestigio, Punti Virtuosi e Punti Sinistri sono visibili soltanto al proprietario dopo aver inserito la password di modifica."));}
       p.appendChild(el("h4",null,"Sezioni e strutture disponibili"));
-      p.appendChild(el("p","small-note","Seleziona soltanto ciò che vuoi usare: le sezioni opzionali compariranno nella barra in alto. Se le deselezioni spariranno dal menu senza perdere i dati già salvati; riattivandole torneranno nella posizione che avevano e potrai sempre trascinarle dove preferisci."));
+      p.appendChild(el("p","small-note","Seleziona soltanto ciò che vuoi usare: le sezioni opzionali personali compariranno nella barra in alto. Se le deselezioni spariranno dal menu senza perdere i dati già salvati. <b>Eccezione:</b> una sezione resta visibile finché il PG possiede o condivide una struttura cloud di quel tipo; per rimuovere una struttura condivisa usa la gestione qui sotto."));
       var struttRow=el("div","row"),struttOpts=[{key:"taccuino",label:"Taccuino personale"},{key:"dispensa",label:"Dispensa degli Ingredienti"},{key:"laboratorio",label:"Laboratorio di Pozioni"},{key:"serra",label:"Serra"},{key:"riserva",label:"Riserva"},{key:"importa",label:"Importa da Studente"}];
       for(var so=0;so<struttOpts.length;so++){(function(o){var w=el("div","chk-line"),box=el("input");box.type="checkbox";box.checked=STRUTTURE[o.key];box.addEventListener("change",function(){STRUTTURE[o.key]=box.checked;DATA_DIRTY=true;scheduleSave(0,false);renderAll();});w.appendChild(box);w.appendChild(el("span",null,o.label));struttRow.appendChild(w);})(struttOpts[so]);}
       p.appendChild(struttRow);
+      var sharedQuickManager=buildSharedFacilityQuickManager();if(sharedQuickManager){p.appendChild(sharedQuickManager);}
       p.appendChild(el("p","small-note","«Importa da Studente» è facoltativo: attivalo soltanto se devi trasferire dati da un Elfo Studente. Dopo il trasferimento puoi nasconderlo di nuovo senza perdere ciò che hai importato."));
       /* «Cambia Elfo» è gestito dal footer globale: dopo «Disconnetti» compare
          nello stesso punto, centrato, in qualunque pagina. Evitiamo un duplicato qui. */
@@ -12618,7 +12667,27 @@
       container.appendChild(p); return;
     }
 
-    for(var i=0;i<LABORATORI.length;i++){ p.appendChild(buildLaboratorioCard(LABORATORI[i])); }
+    for(var i=0;i<LABORATORI.length;i++){
+      try{
+        p.appendChild(buildLaboratorioCard(LABORATORI[i]));
+      }catch(e){
+        console.error("Rendering Laboratorio fallito",e,LABORATORI[i]);
+        var brokenLab=LABORATORI[i],recovery=el("div","warning-alert");
+        recovery.appendChild(el("strong",null,"⚠ Questo Laboratorio non può essere visualizzato correttamente."));
+        recovery.appendChild(el("div","small-note","Puoi comunque rimuoverlo senza riattivare il tick dalla schermata «Dati Personaggio e Strutture»."));
+        if(brokenLab&&brokenLab._sharedRemote){
+          var recoverBtn=el("button","action danger small",sharedIsOwner(brokenLab)?"Elimina questo Laboratorio":"Lascia questo Laboratorio");
+          recoverBtn.type="button";recoverBtn.disabled=!EDIT_UNLOCKED;
+          recoverBtn.addEventListener(EV,function(){
+            if(!EDIT_UNLOCKED){alert("Inserisci prima la Password di modifica.");return;}
+            if(sharedIsOwner(brokenLab)){sharedDeleteFacility(brokenLab,"Laboratorio",recoverBtn);}
+            else{sharedLeaveFacility(brokenLab,recoverBtn);}
+          });
+          recovery.appendChild(recoverBtn);
+        }
+        p.appendChild(recovery);
+      }
+    }
 
     container.appendChild(p);
   }
