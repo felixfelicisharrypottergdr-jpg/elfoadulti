@@ -1,4 +1,6 @@
+
 <!DOCTYPE html>
+<!-- elfo_adulto_v250 — Conteggi Cicli: Post necessari indipendenti dal n° globale; avvio esplicito dal primo Post; startIndex vuoto finché il conteggio non parte; compatibile con PG responsabili condivisi; 12/09/2026 -->
 <!-- elfo_adulto_v249 — Cicli 0%: conferma TERMINATO + avanzamento; storico Fasi piatto con un solo details per fase; 12/09/2026 -->
 <!-- elfo_adulto_v248 — ponte Felix Token: esporta stato chiuso/accreditato dei Mesi per missioni periodiche, senza nuove letture Firebase; 12/09/2026 -->
 <!-- elfo_adulto_v247 — ponte Felix Token v2: Role concluse + mesi consecutivi esportati localmente, nessuna lettura Firebase aggiuntiva; 11/09/2026 -->
@@ -4866,7 +4868,9 @@
     return Object.keys(dups).map(function(x){return parseInt(x,10);}).sort(function(a,b){return a-b;});
   }
   function permanentGlobalHoles(start,count){
-    start=Math.max(1,parseInt(start,10)||1);count=Math.max(0,parseInt(count,10)||0);var holes=[];
+    start=parseInt(start,10);count=Math.max(0,parseInt(count,10)||0);var holes=[];
+    /* v250 — il totale dei Post può essere impostato prima dell'avvio del conteggio. */
+    if(!(start>0)||!(count>0)){return holes;}
     for(var i=0;i<count;i++){var n=start+i;if(n<=globalPostCounter&&!getPostByGlobalNo(n)){holes.push(n);}}
     return holes;
   }
@@ -8928,7 +8932,7 @@
   function activityPotionId(pz){return "potion:"+String(pz&&pz.id!=null?pz.id:"")+":cleaning";}
   function activityHealingId(h){return "healing:"+String(h&&h.id||"");}
   function activityCycleId(type,occId,stageKey,suffix){return "cycle:"+String(type||"").toLowerCase()+":"+String(occId)+":"+String(stageKey)+":"+String(suffix);}
-  function activityPotionProgress(pz){var total=Math.max(0,parseInt(pz&&pz.postRichiesti,10)||0),filled=0,resp=normalizePgName(pz&&pz.responsabilePg||"");var pending=!!(resp&&resp!==normalizePgName(PG_ID||"")&&!sharedResponsibleCacheReady(resp));if(pending){sharedEnsureResponsiblePostCache(resp);}if(total>0&&!pending){for(var i=0;i<total;i++){var post=getPostByGlobalNoForPg(resp,(parseInt(pz.startIndex,10)||0)+i);if(post&&String(post.link||"").trim()){filled++;}}}return {filled:filled,total:total,pending:pending,complete:!pending&&total>0&&filled>=total};}
+  function activityPotionProgress(pz){var total=Math.max(0,parseInt(pz&&pz.postRichiesti,10)||0),start=parseInt(pz&&pz.startIndex,10)||0,filled=0,resp=normalizePgName(pz&&pz.responsabilePg||"");var pending=!!(resp&&resp!==normalizePgName(PG_ID||"")&&!sharedResponsibleCacheReady(resp));if(pending){sharedEnsureResponsiblePostCache(resp);}if(total>0&&start>0&&!pending){for(var i=0;i<total;i++){var post=getPostByGlobalNoForPg(resp,start+i);if(post&&String(post.link||"").trim()){filled++;}}}return {filled:filled,total:total,pending:pending,waitingStart:total>0&&!(start>0),complete:!pending&&total>0&&start>0&&filled>=total};}
   function activityCompletionItems(){
     var out=[];
     function add(id,label,step,kind){if(id){out.push({id:id,label:label,step:step,kind:kind||""});}}
@@ -12630,7 +12634,7 @@
       bacchettaLink: "", bacchettaEsito: "riuscita", dosi: 2,
       distillSvolta: false, distillLink: "", distillEsito: "", distillBagaglio: "",
       imbottLink: "", imbottPercent: "100", calderaio: "0",
-      postRichiesti: 10, startIndex: nextGlobalPostNumber(),
+      postRichiesti: 10, startIndex: "",
       imbottModificatori:"",
       legalita:"legale", illegalita:{professione:"",protezioni:"",facceProtezione:0,controlli:{}},
     };
@@ -12999,14 +13003,18 @@
     var dPost=el("div"); dPost.appendChild(el("label",null,"Post necessari"));
     var iPost=el("input"); iPost.type="number"; iPost.min="0"; iPost.step="1";
     iPost.value=Math.max(0,num(postaz.postRichiesti,0));
-    iPost.addEventListener("change",function(){var proposed=Math.max(0,num(iPost.value,0));if(!validateGlobalIntervalOrAlert(postaz.startIndex,proposed)){iPost.value=postaz.postRichiesti;return;}postaz.postRichiesti=proposed;scheduleSave(0);renderAll();});
+    iPost.addEventListener("change",function(){var proposed=Math.max(0,num(iPost.value,0));postaz.postRichiesti=proposed;scheduleSave(0);renderAll();});
     dPost.appendChild(iPost); row.appendChild(dPost);
 
     var dStart=el("div"); dStart.appendChild(el("label",null,"Dal post globale n°"));
-    var iStart=el("input"); iStart.type="number"; iStart.min="1"; iStart.step="1";
-    iStart.value=Math.max(1,num(postaz.startIndex,nextGlobalPostNumber()));
-    iStart.addEventListener("change",function(){var proposed=Math.max(1,num(iStart.value,1));if(!validateGlobalIntervalOrAlert(proposed,Math.max(0,num(postaz.postRichiesti,0)))){iStart.value=postaz.startIndex;return;}postaz.startIndex=proposed;scheduleSave(0);renderAll();});
-    dStart.appendChild(iStart); row.appendChild(dStart);
+    var respStart=normalizePgName(postaz&&postaz.responsabilePg||""),potionStart=parseInt(postaz.startIndex,10)||0;
+    if(potionStart>0){if(!respStart||respStart===normalizePgName(PG_ID||"")){if(potionStart<=globalPostCounter&&!getPostByGlobalNo(potionStart)){postaz.startIndex="";potionStart=0;}}else if(sharedResponsibleCacheReady(respStart)){var pmap=SHARED_RESP_POST_CACHE[respStart]||{},pmax=0;Object.keys(pmap).forEach(function(k){pmax=Math.max(pmax,parseInt(k,10)||0);});if(potionStart<=pmax&&!getPostByGlobalNoForPg(respStart,potionStart)){postaz.startIndex="";potionStart=0;}}}
+    var iStart=el("input"); iStart.type="number"; iStart.min="1"; iStart.step="1"; iStart.placeholder="Non ancora iniziato";
+    iStart.value=potionStart>0?String(potionStart):"";
+    iStart.addEventListener("change",function(){var raw=String(iStart.value||"").trim();if(!raw){postaz.startIndex="";scheduleSave(0);renderAll();return;}var proposed=parseInt(raw,10)||0;if(!(proposed>0)||(!respStart||respStart===normalizePgName(PG_ID||""))&&!validateGlobalIntervalOrAlert(proposed,Math.max(0,num(postaz.postRichiesti,0)))){iStart.value=postaz.startIndex||"";return;}postaz.startIndex=proposed;scheduleSave(0);renderAll();});
+    dStart.appendChild(iStart);
+    var btnStart=el("button","action small","Inizia dal prossimo Post globale");btnStart.type="button";if(respStart&&respStart!==normalizePgName(PG_ID||"")&&!sharedResponsibleCacheReady(respStart)){btnStart.disabled=true;btnStart.textContent="Caricamento Post del PG…";sharedEnsureResponsiblePostCache(respStart);}btnStart.addEventListener(EV,function(){var proposed=sharedNextGlobalPostForPg(respStart);if((!respStart||respStart===normalizePgName(PG_ID||""))&&!validateGlobalIntervalOrAlert(proposed,Math.max(0,num(postaz.postRichiesti,0))))return;postaz.startIndex=proposed;scheduleSave(0);renderAll();});dStart.appendChild(btnStart);
+    row.appendChild(dStart);
 
     wrap.appendChild(row);
     wrap.appendChild(el("p","small-note","Il N. globale si trova in <b>I tuoi Post</b> del PG responsabile. Non devi registrare qui i singoli post: la Pulizia avanza automaticamente quando quei Post vengono aggiunti all’Elfo."));
@@ -13026,12 +13034,13 @@
     var wrap = el("div"),resp=normalizePgName(postaz&&postaz.responsabilePg||"");
     var pending=!!(resp&&resp!==normalizePgName(PG_ID||"")&&!sharedResponsibleCacheReady(resp));
     if(pending){sharedEnsureResponsiblePostCache(resp);wrap.appendChild(el("div","small-note","Caricamento dei Post di "+resp+"…"));return wrap;}
-    var filled = 0;
-    for(var s=0; s<postaz.postRichiesti; s++){
-      var post = getPostByGlobalNoForPg(resp,postaz.startIndex + s);
+    var filled = 0,start=parseInt(postaz.startIndex,10)||0;
+    if(start>0){for(var s=0; s<postaz.postRichiesti; s++){
+      var post = getPostByGlobalNoForPg(resp,start + s);
       if(post){ if(String(post.link || "").trim() !== ""){ filled = filled + 1; } }
-    }
+    }}
     wrap.appendChild(progressStatusNode("Pulizia del Calderone", filled, postaz.postRichiesti));
+    if(postaz.postRichiesti>0&&!(start>0)){wrap.appendChild(el("div","small-note","Post richiesti salvati. Il conteggio non è ancora iniziato: imposta il primo Post globale quando il PG responsabile comincia davvero a postare."));}
     if(postaz.postRichiesti>0&&filled>=postaz.postRichiesti){wrap.appendChild(buildActivityAckControl(activityPotionId(postaz)));}
     return wrap;
   }
@@ -13094,8 +13103,9 @@
       if(String(postaz.imbottModificatori||"").trim()!==""){ lines.push("<b>Modificatori applicati:</b> "+String(postaz.imbottModificatori).trim()); }
 
       lines.push("[SPOILER]");
+      var exportStart=parseInt(postaz.startIndex,10)||0;
       for(var s=0; s<postaz.postRichiesti; s++){
-        var slotPost = getPostByGlobalNoForPg(postaz.responsabilePg,postaz.startIndex + s);
+        var slotPost = exportStart>0 ? getPostByGlobalNoForPg(postaz.responsabilePg,exportStart + s) : null;
         lines.push(slotPost ? (s+1) + ": " + forumBbUrl(slotPost.link,"x") : (s+1) + ":");
       }
       lines.push("[/SPOILER]");
@@ -13133,7 +13143,7 @@
 
   function newSubEntry(){
     return {
-      esitoLink:"", esitoText:"", postRichiesti:0, startIndex:nextGlobalPostNumber(),
+      esitoLink:"", esitoText:"", postRichiesti:0, startIndex:"",
       ottenuti:"", ottenutiLink:"", ottenutiQuantita:"", erbCicloConsumataPerFallimento:false
     };
   }
@@ -13150,7 +13160,18 @@
     if(sub.esitoText==null){sub.esitoText="";}
     if(sub.postRichiesti==null){sub.postRichiesti=0;}
     if(sub.erbCicloConsumataPerFallimento==null){sub.erbCicloConsumataPerFallimento=zeroPercentOutcomeEntered(sub.esitoText);}
-    if(sub.startIndex==null){sub.startIndex=nextGlobalPostNumber();}
+    if(sub.startIndex==null){sub.startIndex="";}
+    var legacyStart=parseInt(sub.startIndex,10);
+    if(!(legacyStart>0)){sub.startIndex="";}
+    else{
+      var legacyResp=normalizePgName(sub.responsabilePg||"");
+      if(!legacyResp||legacyResp===normalizePgName(PG_ID||"")){
+        if(legacyStart<=globalPostCounter&&!getPostByGlobalNo(legacyStart)){sub.startIndex="";}else{sub.startIndex=legacyStart;}
+      }else if(sharedResponsibleCacheReady(legacyResp)){
+        var legacyMap=SHARED_RESP_POST_CACHE[legacyResp]||{},legacyMax=0;Object.keys(legacyMap).forEach(function(k){legacyMax=Math.max(legacyMax,parseInt(k,10)||0);});
+        if(legacyStart<=legacyMax&&!getPostByGlobalNoForPg(legacyResp,legacyStart)){sub.startIndex="";}else{sub.startIndex=legacyStart;}
+      }else{sub.startIndex=legacyStart;}
+    }
     if(sub.ottenuti==null){sub.ottenuti="";}
     if(sub.ottenutiLink==null){sub.ottenutiLink="";}
     if(sub.ottenutiQuantita==null){sub.ottenutiQuantita="";}
@@ -13169,15 +13190,16 @@
   function subEntryProgress(sub){
     sub=normalizeSubEntry(sub);
     var total=Math.max(0,num(sub.postRichiesti,0));
+    var start=parseInt(sub.startIndex,10)||0;
     var resp=normalizePgName(sub.responsabilePg||"");
     var pending=!!(resp&&resp!==normalizePgName(PG_ID||"")&&!sharedResponsibleCacheReady(resp));
     if(pending){sharedEnsureResponsiblePostCache(resp);}
     var filled=0;
-    if(!pending){for(var i=0;i<total;i++){
-      var post=getPostByGlobalNoForPg(resp,sub.startIndex+i);
+    if(start>0&&!pending){for(var i=0;i<total;i++){
+      var post=getPostByGlobalNoForPg(resp,start+i);
       if(post && String(post.link||"").trim()!==""){filled++;}
     }}
-    return {filled:filled,total:total,pending:pending,responsabilePg:resp};
+    return {filled:filled,total:total,pending:pending,waitingStart:total>0&&!(start>0),startIndex:start,responsabilePg:resp};
   }
 
   function newOccupant(stages, counterRef){
@@ -14139,24 +14161,28 @@
     var iPost = el("input"); iPost.type="number"; iPost.min="0"; iPost.value = sub.postRichiesti;
     iPost.addEventListener("change", function(){
       var proposed=Math.max(0,num(iPost.value,0));
-      if(!validateGlobalIntervalOrAlert(sub.startIndex,proposed)){iPost.value=sub.postRichiesti;return;}
       sub.postRichiesti=proposed;scheduleSave(0);renderAll();
     });
     dPost.appendChild(iPost); row.appendChild(dPost);
 
     var dStart = el("div"); dStart.appendChild(el("label", null, "Dal post globale n°"));
-    var iStart = el("input"); iStart.type="number"; iStart.min="1"; iStart.value = sub.startIndex;
+    var respStart=normalizePgName(sub.responsabilePg||"");
+    var iStart = el("input"); iStart.type="number"; iStart.min="1"; iStart.placeholder="Non ancora iniziato"; iStart.value = (parseInt(sub.startIndex,10)>0?String(parseInt(sub.startIndex,10)):"");
     iStart.addEventListener("change", function(){
-      var proposed=Math.max(1,num(iStart.value,1));
-      if(!validateGlobalIntervalOrAlert(proposed,sub.postRichiesti)){iStart.value=sub.startIndex;return;}
+      var raw=String(iStart.value||"").trim();
+      if(!raw){sub.startIndex="";scheduleSave(0);renderAll();return;}
+      var proposed=parseInt(raw,10)||0;
+      if(!(proposed>0)||((!respStart||respStart===normalizePgName(PG_ID||""))&&!validateGlobalIntervalOrAlert(proposed,sub.postRichiesti))){iStart.value=sub.startIndex||"";return;}
       sub.startIndex=proposed;scheduleSave(0);renderAll();
     });
-    dStart.appendChild(iStart); row.appendChild(dStart);
+    dStart.appendChild(iStart);
+    var btnStart=el("button","action small","Inizia dal prossimo Post globale");btnStart.type="button";if(respStart&&respStart!==normalizePgName(PG_ID||"")&&!sharedResponsibleCacheReady(respStart)){btnStart.disabled=true;btnStart.textContent="Caricamento Post del PG…";sharedEnsureResponsiblePostCache(respStart);}btnStart.addEventListener(EV,function(){var proposed=sharedNextGlobalPostForPg(respStart);if((!respStart||respStart===normalizePgName(PG_ID||""))&&!validateGlobalIntervalOrAlert(proposed,Math.max(0,num(sub.postRichiesti,0))))return;sub.startIndex=proposed;scheduleSave(0);renderAll();});dStart.appendChild(btnStart);
+    row.appendChild(dStart);
     wrap.appendChild(row);
 
     var pr=subEntryProgress(sub);
     if(pr.pending){wrap.appendChild(el("div","small-note","Caricamento dei Post di "+String(pr.responsabilePg||"Collaboratore")+"…"));}
-    else{wrap.appendChild(progressStatusNode("", pr.filled, pr.total));}
+    else{wrap.appendChild(progressStatusNode("", pr.filled, pr.total));if(pr.waitingStart){wrap.appendChild(el("div","small-note","Post richiesti salvati. Il conteggio non è ancora iniziato: imposta il primo Post globale quando cominci davvero a postare."));}}
     if(sub.erbCicloConsumataPerFallimento){
       wrap.appendChild(el("div","small-note","Ciclo consumato con esito 0%: nessun Post o raccolto richiesto; il Ciclo conta come TERMINATO nella Fase."));
     }
@@ -14300,8 +14326,8 @@
     targets.forEach(function(t){
       var sub=normalizeSubEntry(t.sub),row=el("div","row");
       var dName=el("div");dName.appendChild(el("label",null,"Conteggio"));dName.appendChild(el("div","shared-responsible-name","<b>"+t.label+"</b>"));row.appendChild(dName);
-      var dPost=el("div");dPost.appendChild(el("label",null,"Post necessari"));var iPost=el("input");iPost.type="number";iPost.min="0";iPost.step="1";iPost.value=Math.max(0,num(sub.postRichiesti,0));iPost.addEventListener("change",function(){var proposed=Math.max(0,num(iPost.value,0));if(!validateGlobalIntervalOrAlert(sub.startIndex,proposed)){iPost.value=sub.postRichiesti;return;}sub.postRichiesti=proposed;scheduleSave(0);renderAll();});dPost.appendChild(iPost);row.appendChild(dPost);
-      var dStart=el("div");dStart.appendChild(el("label",null,"Dal post globale n°"));var iStart=el("input");iStart.type="number";iStart.min="1";iStart.step="1";iStart.value=Math.max(1,num(sub.startIndex,nextGlobalPostNumber()));iStart.addEventListener("change",function(){var proposed=Math.max(1,num(iStart.value,1));if(!validateGlobalIntervalOrAlert(proposed,Math.max(0,num(sub.postRichiesti,0)))){iStart.value=sub.startIndex;return;}sub.startIndex=proposed;scheduleSave(0);renderAll();});dStart.appendChild(iStart);row.appendChild(dStart);
+      var dPost=el("div");dPost.appendChild(el("label",null,"Post necessari"));var iPost=el("input");iPost.type="number";iPost.min="0";iPost.step="1";iPost.value=Math.max(0,num(sub.postRichiesti,0));iPost.addEventListener("change",function(){var proposed=Math.max(0,num(iPost.value,0));sub.postRichiesti=proposed;scheduleSave(0);renderAll();});dPost.appendChild(iPost);row.appendChild(dPost);
+      var dStart=el("div");dStart.appendChild(el("label",null,"Dal post globale n°"));var respStart=normalizePgName(sub.responsabilePg||"");var iStart=el("input");iStart.type="number";iStart.min="1";iStart.step="1";iStart.placeholder="Non ancora iniziato";iStart.value=parseInt(sub.startIndex,10)>0?String(parseInt(sub.startIndex,10)):"";iStart.addEventListener("change",function(){var raw=String(iStart.value||"").trim();if(!raw){sub.startIndex="";scheduleSave(0);renderAll();return;}var proposed=parseInt(raw,10)||0;if(!(proposed>0)||((!respStart||respStart===normalizePgName(PG_ID||""))&&!validateGlobalIntervalOrAlert(proposed,Math.max(0,num(sub.postRichiesti,0))))){iStart.value=sub.startIndex||"";return;}sub.startIndex=proposed;scheduleSave(0);renderAll();});dStart.appendChild(iStart);var btnStart=el("button","action small","Inizia dal prossimo Post globale");btnStart.type="button";if(respStart&&respStart!==normalizePgName(PG_ID||"")&&!sharedResponsibleCacheReady(respStart)){btnStart.disabled=true;btnStart.textContent="Caricamento Post del PG…";sharedEnsureResponsiblePostCache(respStart);}btnStart.addEventListener(EV,function(){var proposed=sharedNextGlobalPostForPg(respStart);if((!respStart||respStart===normalizePgName(PG_ID||""))&&!validateGlobalIntervalOrAlert(proposed,Math.max(0,num(sub.postRichiesti,0))))return;sub.startIndex=proposed;scheduleSave(0);renderAll();});dStart.appendChild(btnStart);row.appendChild(dStart);
       box.appendChild(row);
       var pr=subEntryProgress(sub);if(pr.pending){box.appendChild(el("div","small-note","Caricamento dei Post del PG responsabile…"));}else if(pr.total>0){box.appendChild(progressStatusNode(t.label,pr.filled,pr.total));}
     });
@@ -15202,7 +15228,8 @@
     if(pr.total>0){
       out+="<ol>";
       for(var i=0;i<pr.total;i++){
-        var post=getPostByGlobalNoForPg(sub.responsabilePg,sub.startIndex+i);
+        var exportStart=parseInt(sub.startIndex,10)||0;
+        var post=exportStart>0?getPostByGlobalNoForPg(sub.responsabilePg,exportStart+i):null;
         out+="<li>"+(post?forumBbUrl(post.link,"Post "+(i+1)):"Post "+(i+1))+"</li>";
       }
       out+="</ol>";
@@ -15417,9 +15444,9 @@
     var keys = Object.keys(cicliObj);
     for(var i=0;i<keys.length;i++){
       var entry = cicliObj[keys[i]]||{};
-      if(entry.evento){ entry.evento.startIndex = Math.max(1,num(entry.evento.startIndex,1) + offset); }
+      if(entry.evento){ var es=parseInt(entry.evento.startIndex,10)||0; entry.evento.startIndex = es>0 ? es + offset : ""; }
       if(Array.isArray(entry.list)){
-        for(var j=0;j<entry.list.length;j++){ entry.list[j].startIndex = Math.max(1,num(entry.list[j].startIndex,1) + offset); }
+        for(var j=0;j<entry.list.length;j++){ var ls=parseInt(entry.list[j].startIndex,10)||0; entry.list[j].startIndex = ls>0 ? ls + offset : ""; }
       }
     }
   }
@@ -15581,7 +15608,7 @@
       var countCald = 0, activeCald=(requested.calderoni&&!STUDENT_IMPORT_STATE.calderoni&&Array.isArray(data.calderoni))?data.calderoni:[], archivedCald=(requested.calderoni&&!STUDENT_IMPORT_STATE.calderoni&&Array.isArray(data.archivioCalderoni))?data.archivioCalderoni:[];
       if(requested.calderoni && !STUDENT_IMPORT_STATE.calderoni && (activeCald.length || archivedCald.length)){
         var newLab = newLaboratorio();newLab.nome = "Importato da Studente";
-        function importPotion(src,archived){var copy=JSON.parse(JSON.stringify(src||{}));postazCounter++;copy.id=postazCounter;copy.startIndex=Math.max(1,num(copy.startIndex,1)+offset);if(archived){if(!copy._archivedAt)archiveStamp(copy);newLab.ARCHIVIO_POSTAZIONI.push(copy);}else{newLab.POSTAZIONI.push(copy);}countCald++;}
+        function importPotion(src,archived){var copy=JSON.parse(JSON.stringify(src||{}));postazCounter++;copy.id=postazCounter;var ps=parseInt(copy.startIndex,10)||0;copy.startIndex=ps>0?ps+offset:"";if(archived){if(!copy._archivedAt)archiveStamp(copy);newLab.ARCHIVIO_POSTAZIONI.push(copy);}else{newLab.POSTAZIONI.push(copy);}countCald++;}
         for(var c=0;c<activeCald.length;c++)importPotion(activeCald[c],false);
         for(var ca=0;ca<archivedCald.length;ca++)importPotion(archivedCald[ca],true);
         LABORATORI.push(newLab);STRUTTURE.laboratorio = true;
