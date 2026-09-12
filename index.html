@@ -1,114 +1,15 @@
-
-
-
-<!-- v200 — conflitti strutture condivise: conserva modifiche locali e scelta esplicita cloud/locale; 09/09/2026 -->
-<!-- v202 — ottimizzazione quota Firebase: il flush delle strutture condivise resta su pagehide/uscita reale, non sul semplice visibilitychange; 09/09/2026 -->
-<!-- v175: ripristinato import completo Erbologia (ciclo, esito, post, legalità Pianta e campi v137). -->
-<!-- elfo_adulto_v205 — rimosso il paragrafo tecnico iniziale sulla ricerca PG; comportamento ottimizzato e avvisi contestuali invariati. -->
-<!-- elfo_adulto_v206 — audit trasversale Serra/Riserva/Dispensa: raccolti Magizoologia importati nel Ciclo e trasferibili atomicamente in Dispensa; deduplicazione/correzioni allineate a Erbologia. -->
-<!-- elfo_adulto_v207 — audit eliminazione/archivio: registro storico persistente dei raccolti trasferiti, anti-doppio accredito anche dopo rimozione dell'esemplare. -->
-<!-- elfo_adulto_v208 — audit strutture condivise: import specialistici possono aggiornare solo lavorazioni del PG responsabile; provenienza Dispensa usa il responsabile del Ciclo. -->
-<!-- elfo_adulto_v209 — audit uscita Collaboratori: blocco transazionale delle lavorazioni attive e riassegnazione al Proprietario delle lavorazioni archiviate. -->
-<!-- elfo_adulto_v210 — audit trasferimento Proprietà: responsabilità legacy cristallizzate prima del cambio owner; lavorazioni, cicli, numerazione e setting invariati. -->
-<!-- elfo_adulto_v211 — audit protezioni condivise: gli import non riattivano protezioni storiche; stato attivo gestito solo dalla struttura condivisa. -->
-<!-- elfo_adulto_v212 — audit controlli illegali: storico importato non distruttivo, campi assenti non cancellano esiti già risolti; modifiche manuali salvate. -->
-<!-- elfo_adulto_v213 — audit Legale/Illegale: storico precedente conservato e visibile come non attivo; nessun rilancio implicito. -->
-<!-- elfo_adulto_v214 — audit Studente→Adulto: cycleTransferLedger importato/ricostruito; storico raccolti anti-doppio accredito preservato. -->
-<!-- elfo_adulto_v215 — audit trasferimenti parziali: se la Dispensa arriva dopo Piante/Creature, ricostruisce il ledger da tutte le strutture già presenti. -->
-<!-- elfo_adulto_v216 — audit revisioni condivise: rimozione Collaboratore + riassegnazione Archivio incrementano revision atomica, evitando sovrascritture concorrenti. -->
-<!-- elfo_adulto_v217 — migrazione caricamento: ricostruzione persistente del ledger anti-doppio accredito per Cicli legacy già trasferiti. -->
-<!-- elfo_adulto_v218 — migrazione ledger preservata anche nei reload da conflitto; consolidamento tecnico separato dallo stato utente. -->
-<!-- elfo_adulto_v219 — ottimizzazione write condivise: presenza editing incorporata nel salvataggio reale; eliminata la write touch separata. -->
-<!-- elfo_adulto_v220 — audit import correttivi: Legalità assente non forza Legale; correzioni metadata/storico applicate anche con Ciclo e raccolto identici. -->
-<!-- elfo_adulto_v221 — Ripristino Pozioni: rispetto della capienza del Laboratorio, anche condiviso. -->
-<!-- elfo_adulto_v222 — Undo/Redo personale non interrompe più le strutture condivise; reidratazione locale dalla cache senza nuove letture. -->
-<!-- elfo_adulto_v223 — presenza editing ottimizzata: heartbeat fallback max ogni 75s solo durante digitazione continua; save reale rinnova il timer. -->
-<!-- elfo_adulto_v224 — correzioni raccolto atomiche: blocco se lotto Dispensa già usato/modificato; nessun rollback quando il raccolto non cambia. -->
-<!-- elfo_adulto_v225 — ledger legacy: tipo Pianta/Creatura passato esplicitamente quando harvest.context manca. -->
-<!-- elfo_adulto_v226 — migrazione ledger già esistente: chiavi legacy senza tipo vengono riscritte come Pianta/Creatura e deduplicate. -->
-<!-- elfo_adulto_v227 — rimozione esemplare attivo preserva il ledger anti-doppio accredito prima dello splice. -->
-<!-- elfo_adulto_v228 — correzioni atomiche: Esito/Post e Semi validati prima di qualsiasi rollback della Dispensa. -->
-<!-- elfo_adulto_v229 — import rifiutati senza side effect: rollback non sicuro non marca needsCorrection durante il preflight. -->
-<!-- elfo_adulto_v230 — fix Taccuino: apertura Role con URL normalizzata; supporto ForumFree abbreviato/BBCode; niente navigazione relativa all'iframe. -->
-<!-- elfo_adulto_v231 — Taccuino multi-dispositivo: CAS cloudRevision, niente overwrite stale; pending locale confrontata col cloud prima del push. -->
-<!-- elfo_adulto_v232 — Taccuino multi-device audit: cloudBaseRevision persistente; niente decisioni basate sull'orologio; conflict/pending stale quarantinati nel Recovery. -->
-<!-- elfo_adulto_v233 — Taccuino readonly: il cloud viene mostrato senza sovrascrivere localStorage del proprietario. -->
-<!-- elfo_adulto_v234 — Recovery/relogin: rebase solo su cloud verificato; baseline invalidata al logout per evitare revisioni stale. -->
-<!-- elfo_adulto_v235 — conflitti stato generale: snapshot locale immediato appena il save viene rifiutato, prima dell'overlay. -->
-<!-- elfo_adulto_v236 — rebase multi-device: ricontrollo stato locale live prima del merge, evitando perdita di edit durante la richiesta Firebase. -->
-<!-- elfo_adulto_v237 — Recovery generale three-way: pending conserva baseline; ripristino fonde solo sezioni locali disgiunte e chiede conferma su overlap/legacy. -->
-<!-- elfo_adulto_v238 — I tuoi Post: Salva/pagehide consolidano sincronicamente le bozze link prima di collectState, evitando Post visibili ma non ancora persistiti. -->
-<!-- elfo_adulto_v239 — salvataggio generale: flush centrale dei link Post prima di ogni serializedSaveLatest; copre autosave, Salva, Disconnetti, Cambia Elfo e retry. -->
-<!-- elfo_adulto_v240 — audit salvataggi/I tuoi Post: Recovery baseline compatta + flush campo attivo su Salva/pagehide/Disconnetti/Cambia Elfo. -->
-<!-- elfo_adulto_v241 — Taccuino: permission-denied non ritenta; copia locale esplicitata. Fix fallback conflitto generale: rimosso riferimento `deleted` fuori scope. Richiede Rules v60 per cloudRevision. -->
-<!-- elfo_adulto_v242 — UI Taccuino cloud silenziosa: nessun messaggio per attesa/sync riuscita; solo errori/avvisi reali. -->
-<!-- elfo_adulto_v243 — fix UI Taccuino silenziosa: usa TACC_CLOUD_TEXT/TACC_CLOUD_ERROR originali e nessun renderAll dal setter. -->
-<!-- elfo_adulto_v244 — accrediti Narratore autoritativi: ricarica cloud automatica senza popup; veri conflitti player invariati. -->
-<!-- elfo_adulto_v245 — strutture condivise: gestione rapida in Connessione anche con tick disattivato; fallback eliminazione/uscita se una scheda Laboratorio non renderizza. -->
-<!-- elfo_adulto_v247 — ponte Felix Token v2: Role concluse + mesi consecutivi esportati localmente, nessuna lettura Firebase aggiuntiva; 11/09/2026 -->
 <!DOCTYPE html>
+<!-- elfo_adulto_v248 — ponte Felix Token: esporta stato chiuso/accreditato dei Mesi per missioni periodiche, senza nuove letture Firebase; 12/09/2026 -->
+<!-- elfo_adulto_v247 — ponte Felix Token v2: Role concluse + mesi consecutivi esportati localmente, nessuna lettura Firebase aggiuntiva; 11/09/2026 -->
 <!-- elfo_adulto_v246 — ponte locale Felix Token: esporta mesi/Post della Camera Blindata in localStorage condiviso, senza letture Firebase aggiuntive; 11/09/2026 -->
-<!-- v174 — rimosso promemoria Lista della Spesa alla chiusura Role fuori conteggio; 08/09/2026 -->
-<!-- v165 — fix mirato post-password: ricalcolo altezza ritardato dopo sblocco modifica; bridge sezioni invariato e isolabile nel parent; 08/09/2026 -->
-<!-- v163 — fix altezza iframe: misura robusta scrollHeight + bounding box; include controllo sezioni escluse v162; nessuna lettura Firebase aggiuntiva; 08/09/2026 -->
-<!-- v162 — I tuoi Post: blocco automatico sezioni 0 Galeoni/fuori conteggio via bridge ForumFree; nessuna lettura Firebase aggiuntiva; include tutti i fix v161; 08/09/2026 -->
-<!-- v161 — strutture condivise: diagnostica accettazione + Rules v60 con accessi ridotti; include tutti i fix v160; 08/09/2026 -->
-<!-- v160 — fix finale accettazione inviti strutture condivise; richiede Rules v59; include tutti i fix v159; 08/09/2026 -->
-<!-- v159 — strutture condivise: accettazione inviti + sezioni condivise accessibili anche senza tick personale; include tutti i fix v158; 08/09/2026 -->
-<!-- v158 — strutture: numerazione Postazioni per singolo Laboratorio + avvisi solo per import automatici esterni; 08/09/2026 -->
-<!-- v157 — macro-audit Laboratori/contatori: fix condivisione Collaboratori, N. globale in I tuoi Post, Pulizia più chiara; include tutti i fix v156; 08/09/2026 -->
-<!-- v156 — Dispensa: alias Nogtail/Hodag + nome Pugnacio uniformato; include tutti i fix v155, 07/09/2026 -->
-<!-- v155 — Bonus: fix Firestore __primary__, contatore Usi per riga, editor semplificato, rerender stabile; ST invariati, 07/09/2026 -->
-<!-- v154 — fix Bonus __primary__ Firestore + rerender stabile senza saltino iframe; ST invariati, 07/09/2026 -->
-<!-- v153 — audit finale: diagnostica allineata al Gestore ST v73; transazione ST v57 invariata, 07/09/2026 -->
-<!-- v152 — macro-audit ST v57: saldo accoppiato direttamente agli usi + diagnostica v72, 07/09/2026 -->
-<!-- v151 — macro-audit: salvataggi Firestore sanitizzati + Staff Token v2/assoc diretta; 07/09/2026 -->
-<!-- v150 — Bonus: checkbox utilizzabili e stato utilizzi salvato subito; backup locale personale; diagnostica ST mirata, 07/09/2026 -->
-<!-- v149 — Staff Token: diagnostica allineata a Rules v57; transazione invariata, 07/09/2026 -->
-<!-- v148 — Staff Token: diagnostica allineata a Rules v57 / Gestore v70, 07/09/2026 -->
-<!-- v147 — Staff Token: diagnostica allineata a Rules v57 / Gestore v70, 07/09/2026 -->
-<!-- v146 — Dispensa: “Azzera Dispensa” sempre visibile; disabilitato solo se la Dispensa è vuota, 07/09/2026 -->
-<!-- v145 — audit post-modifiche: diagnostica Staff Token allineata alle Rules v57, 07/09/2026 -->
-<!-- v144 — Taccuino FantaWiz: niente rilettura lazy cloud durante modifiche locali; liste PG/Role aggiornate subito, 07/09/2026 -->
-<!-- v143 — Dispensa: import robusto da BBCode/HTML con URL e quantità interne, plurali italiani, report non bloccante e “Azzera Dispensa”; 07/09/2026 -->
-<!-- v142 — Staff Token: diagnostica aggiornata per Rules v50 e associazioni PG normalizzate, 07/09/2026 -->
-<!-- v141 — ulteriore risparmio letture: ricerca PG restringibile dalla cache, Staff Token solo usi attivi, Taccuino cloud lazy; realtime condiviso preservato; 06/09/2026 -->
-<!-- v140 — ricerca PG a prefisso: nessun elenco completo, suggerimenti dinamici max 10 con debounce/cache; condivisioni incluse; 06/09/2026 -->
-<!-- v139 — ulteriore risparmio Firestore: Staff Token senza listener globale + Medimagia locale immediata/cloud max 1 volta l’ora + Post condivisi caricati solo quando servono, 06/09/2026 -->
-<!-- v138 — risparmio letture Firestore: elenco PG cloud lazy+cache 24h e controllo Medimagia limitato a 10 minuti, 06/09/2026 -->
-<!-- v137 — anti resource-exhausted: coda locale Elfo, retry con backoff, autosave accorpato e audit cloud diradato, 06/09/2026 -->
-<!-- v136 — audit regressioni: Rimuovi/Azzera Bonus senza confirm nativi, 05/09/2026 -->
-<!-- v135 — Camera Blindata: rimosso il comando ridondante “Archivia questo Mese”; resta disponibile in “I tuoi Post”, 05/09/2026 -->
-<!-- v134 — Camera Blindata compatta: rimossa guida introduttiva e Bonus racchiusi in details chiuso di default, 05/09/2026 -->
-<!-- v133 — Dispensa: importazione massiva resa esplicita nell’interfaccia («Importa Ingredienti»), mantenendo il parser a formato libero, 05/09/2026 -->
-<!-- v132 — Serra: supporto esplicito alla Valigia Magica come struttura per Piante, 05/09/2026 -->
-<!-- v131 — Dispensa formato libero: riconoscimento Ingredienti indipendente da separatori, bullet e impaginazione; quantità opzionale, 05/09/2026 -->
-<!-- v130 — Dispensa tollerante: incolla multi-formato, pulizia HTML/BBCode, alias e fuzzy matching sicuro degli Ingredienti, 05/09/2026 -->
-<!-- v129 — fix Dispensa 10d90: riconosce Classificazione con trattino (X - Nome), quantità assente = 1 dose; corretto Malaclaw Maculato, 05/09/2026 -->
-<!-- v128 — protezione Taccuino universale: copie locali, coda pendente e recupero per ogni profilo/PG, anche prima della registrazione Firebase, 04/09/2026 -->
-<!-- v127 — Taccuino anti-perdita: coda locale persistente, recupero automatico delle modifiche non sincronizzate, retry cloud e stato salvataggio sempre visibile, 04/09/2026 -->
-<!-- v126 — fix restituzione Staff Token: uso autorevole dal record Firebase + percorso Rules v46 dedicato al rimborso, 04/09/2026 -->
-<!-- v125 — conflitti non bloccanti: revisioni/accrediti vengono ricaricati automaticamente dal cloud senza overlay; il popup resta solo come fallback se la rilettura automatica fallisce, 04/09/2026 -->
-<!-- v124 — fix accrediti/conflitti: le CB accreditate restano autoritative su Firebase ma non bloccano modifiche ad altre sezioni; conflitto solo se si modifica davvero il Mese accreditato, 04/09/2026 -->
-<!-- v116 — fix creazione PG: Nome e Cognome obbligatori appena il nome risulta nuovo + doppia protezione prima del salvataggio, 04/09/2026 -->
-<!-- v115 — stato Staffer attivo/non attivo: stop nuovi ST negli Elfi, consumi storici invariati, 04/09/2026 -->
-<!-- v114 — correzione semantica ST: eliminare un Mese NON rimborsa gli Staff Token già usati; consumo e storico restano validi, 04/09/2026 -->
-<!-- v113 — secondo audit: coerenza Staff Token su riferimenti attivi + protezione eliminazione Mesi con ST, 04/09/2026 -->
-<!-- v112 — audit Rules v42→v43: diagnostica aggiornata e integrazione Staff Token con sessione Staff sicura, 04/09/2026 -->
-<!-- v111 — segnalazioni community: import FH→FW trasversale, Dispensa aggiornata, Nome+Cognome e elenco PG cloud, 04/09/2026 -->
-<!-- v110 — Staff Token live in Camera Blindata: saldo, uso/rimborso +1 PP e registro condiviso, 04/09/2026 -->
-<!-- v109 — audit incrociato Adulto/Studente: comandi condivisi senza confirm nativi, diagnostica coerente Rules v43, 04/09/2026 -->
-<!-- v108 — eliminazione strutture/collaboratori con feedback visibile + fix click bloccati, 04/09/2026 -->
-<!-- v107 — details compatti estesi a tutte le Piante/Creature attive, 04/09/2026 -->
-<!-- v106 — dati generali strutture e Pozioni attive in details distinti, 04/09/2026 -->
-<!-- v105 — protezione campi Link + salvataggio condiviso isolato/diagnostico, 04/09/2026 -->
-<!-- v104 — salvataggio strutture condivise robusto + errore persistente, 04/09/2026 -->
-<!-- v102 — fix definitivo permessi Visualizzato + diagnostica sessione, 04/09/2026 -->
-<!-- v101 — fix apertura sezioni condivise + Visualizzato robusto, 04/09/2026 -->
-<!-- v95 - audit generico: condivisione atomica + uscita sicura con Taccuino cloud -->
-<!-- taccuino-import-fix-v3: parser multi-formato esteso, Role senza icone, date/metadati e FantaWiz -->
+<!-- elfo_adulto_v245 — strutture condivise: gestione rapida in Connessione anche con tick disattivato; fallback eliminazione/uscita se una scheda Laboratorio non renderizza. -->
+<!-- elfo_adulto_v244 — accrediti Narratore autoritativi: ricarica cloud automatica senza popup; veri conflitti player invariati. -->
+<!-- elfo_adulto_v243 — fix UI Taccuino silenziosa: usa TACC_CLOUD_TEXT/TACC_CLOUD_ERROR originali e nessun renderAll dal setter. -->
+<!-- elfo_adulto_v242 — UI Taccuino cloud silenziosa: nessun messaggio per attesa/sync riuscita; solo errori/avvisi reali. -->
+<!-- elfo_adulto_v241 — Taccuino: permission-denied non ritenta; copia locale esplicitata. Fix fallback conflitto generale: rimosso riferimento `deleted` fuori scope. Richiede Rules v60 per cloudRevision. -->
+<!-- elfo_adulto_v240 — audit salvataggi/I tuoi Post: Recovery baseline compatta + flush campo attivo su Salva/pagehide/Disconnetti/Cambia Elfo. -->
+<!-- elfo_adulto_v239 — salvataggio generale: flush centrale dei link Post prima di ogni serializedSaveLatest; copre autosave, Salva, Disconnetti, Cambia Elfo e retry. -->
 <html lang="it">
-<!-- v91 - audit Elfo: condivisione transazionale + Cambia Elfo unificato + regressione sezioni opzionali -->
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -4517,7 +4418,15 @@
         if(!special)links.push(link);
       }
       links=Array.from(new Set(links));
-      months.push({id:String(mese.id==null?"":mese.id),name:name,postCount:links.length,links:links,archived:!!mese.chiuso});
+      var accreditationKnown=false,accredited=false;
+      try{
+        accreditationKnown=!!(typeof accreditiVerified==="function"&&accreditiVerified()&&accreditiCache!==null);
+        accredited=!!(accreditationKnown&&typeof monthIsAccredited==="function"&&monthIsAccredited(mese));
+      }catch(e){accreditationKnown=false;accredited=false;}
+      months.push({
+        id:String(mese.id==null?"":mese.id),name:name,postCount:links.length,links:links,
+        archived:!!mese.chiuso,closed:!!mese.chiuso,accreditationKnown:accreditationKnown,accredited:accredited
+      });
     }
     var closedRoles=[];
     try{
@@ -4538,7 +4447,7 @@
         });
       }
     }catch(e){}
-    return {schemaVersion:2,pgName:pg,pgKind:"adulti",updatedAt:new Date().toISOString(),months:months,closedRoles:closedRoles};
+    return {schemaVersion:3,pgName:pg,pgKind:"adulti",updatedAt:new Date().toISOString(),months:months,closedRoles:closedRoles};
   }
   function felixTokenBridgePublishNow(){
     FELIX_TOKEN_BRIDGE_TIMER=null;
