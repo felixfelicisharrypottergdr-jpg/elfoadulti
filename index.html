@@ -1,4 +1,7 @@
 
+<!-- elfo_adulto_v262 — Raccolti: un trasferimento valido già registrato in Dispensa chiude definitivamente il raccolto e non ricompare nei «Raccolti da completare»; gli input numerici dei dadi/raccolti non vengono più distrutti durante la compilazione. 13/09/2026 -->
+<!-- elfo_adulto_v261 — Dispensa: i Semi hanno un details dedicato «Semi», posizionato sopra Ingredienti X; non compaiono più in Ingredienti non classificati. Nessun'altra modifica. 13/09/2026 -->
+<!-- elfo_adulto_v260 — Fix raccolto già trasferito: se il trasferimento in Dispensa è valido, il raccolto è considerato completato anche se il vecchio flag interno «confirmed» era rimasto falso; i nuovi trasferimenti sincronizzano anche quel flag. Nessun'altra funzione modificata. 13/09/2026 -->
 <!-- elfo_adulto_v259 — Taccuino Role: la data è ora «Ambientata al giorno», si sceglie già in Nuova Role e, se lasciata vuota, usa la data di apertura della Role. Nessun'altra funzione modificata. 13/09/2026 -->
 <!-- elfo_adulto_v258 — Audit campi Creature/Pozioni: i blur dei campi non distruggono più il pulsante che il Player sta cliccando; rerender differito per Cicli/raccolti e Pulizia Pozioni, campi nome/link salvati senza salto. Mantiene v257 e tutti i fix conteggi/avvisi/copia. 13/09/2026 -->
 <!-- elfo_adulto_v257 — Trasferimento raccolti: primo click non più perso dal blur/rerender; Ciclo resta aperto e in vista; Semi delle Piante trasferibili in Dispensa come materiale di coltivazione non commerciabile; trasferimento atomico e ledger invariati. 13/09/2026 -->
@@ -12979,15 +12982,18 @@
       :"La Dispensa è già vuota."));
     inventoryBlock.appendChild(clearDispRow);
     if(!DISPENSA.ingredienti.length){ inventoryBlock.appendChild(el("p","small-note","Nessun Ingrediente registrato.")); }
-    var classOrder=["X","XX","XXX","XXXX","XXXXX","Esseri, Non-Esseri e Spiriti","Non classificato"];
+    var classOrder=["Semi","X","XX","XXX","XXXX","XXXXX","Esseri, Non-Esseri e Spiriti","Non classificato"];
     for(var co=0;co<classOrder.length;co++){
-      var className=classOrder[co], groupItems=DISPENSA.ingredienti.filter(function(x){return (x.classificazione||"Non classificato")===className;}).sort(function(a,b){return String(a.nome||"").localeCompare(String(b.nome||""),"it");});
+      var className=classOrder[co], groupItems=DISPENSA.ingredienti.filter(function(x){
+        if(className==="Semi"){return String(x&&x.inventarioTipo||"")==="semi";}
+        return String(x&&x.inventarioTipo||"")!=="semi" && (x.classificazione||"Non classificato")===className;
+      }).sort(function(a,b){return String(a.nome||"").localeCompare(String(b.nome||""),"it");});
       if(!groupItems.length){continue;}
       var group=el("details","ingredient-group");
       keepDetailsState(group,"dispensa:class:"+className,false);
       var classCss=className==="X"?"x":className==="XX"?"xx":className==="XXX"?"xxx":className==="XXXX"?"xxxx":className==="XXXXX"?"xxxxx":"special";
       group.classList.add("ingredient-class-"+classCss);
-      group.appendChild(el("summary",null,"Ingredienti "+className+" — "+groupItems.length+" voce/i"));
+      group.appendChild(el("summary",null,(className==="Semi"?"Semi":"Ingredienti "+className)+" — "+groupItems.length+" voce/i"));
       for(var ii=0;ii<groupItems.length;ii++){
       (function(ing){
         syncIngredienteFromCatalog(ing);ensureIngredientLots(ing);var recMeta=catalogIngredient(ing.nome)||ing;var det=el("details","ingredient-entry");keepDetailsState(det,"dispensa:ing:"+ing.id,false);
@@ -13625,6 +13631,12 @@
       if(sub.dispensaTransfer&&sub.dispensaTransfer.done===true){sub.dispensaTransfer.needsCorrection=true;sub.dispensaTransfer.correctionReason=sub.dispensaTransfer.correctionReason||"Il Ciclo è ora 0% ma il vecchio raccolto risultava già trasferito.";}
     }
     if(sub.dispensaTransfer&&sub.dispensaTransfer.done===true&&sub.dispensaTransfer.harvestSignature&&sub.dispensaTransfer.harvestSignature!==erbHarvestSignature(sub)){sub.dispensaTransfer.needsCorrection=true;sub.dispensaTransfer.correctionReason=sub.dispensaTransfer.correctionReason||"Il raccolto del Ciclo è stato modificato dopo il trasferimento.";}
+    /* v262/v252 — se il trasferimento è già valido, il raccolto è definitivamente
+       risolto. Sana anche i vecchi salvataggi con done=true ma confirmed=false. */
+    if(sub.dispensaTransfer&&sub.dispensaTransfer.done===true&&!sub.dispensaTransfer.needsCorrection&&sub.harvest){
+      sub.harvest.confirmed=true;
+      sub.harvest.resolvedAt=sub.harvest.resolvedAt||sub.dispensaTransfer.at||new Date().toISOString();
+    }
     return sub;
   }
 
@@ -14445,7 +14457,20 @@
     return {applicable:true,manual:!cd.known};
   }
   function harvestResolutionComplete(occupant,sub,isReproduction,config){
-    if(!subEntryFilled(sub))return true;var a=harvestApplicability(occupant,isReproduction,config,sub);if(!a.applicable)return true;var type=isReproduction?"semi":"ingredienti",h=ensurePlantHarvestState(sub,type,occupant,config);return h.confirmed===true;
+    if(!subEntryFilled(sub))return true;
+    var a=harvestApplicability(occupant,isReproduction,config,sub);
+    if(!a.applicable)return true;
+    /* v260/v250 — un trasferimento già riuscito in Dispensa è una conferma
+       più forte del vecchio flag UI "confirmed". Alcuni salvataggi potevano
+       avere done=true ma confirmed=false dopo una modifica/blur del campo. */
+    if(sub&&sub.dispensaTransfer&&sub.dispensaTransfer.done===true&&!sub.dispensaTransfer.needsCorrection){
+      var typeDone=isReproduction?"semi":"ingredienti",hDone=ensurePlantHarvestState(sub,typeDone,occupant,config);
+      hDone.confirmed=true;
+      hDone.resolvedAt=hDone.resolvedAt||sub.dispensaTransfer.at||new Date().toISOString();
+      return true;
+    }
+    var type=isReproduction?"semi":"ingredienti",h=ensurePlantHarvestState(sub,type,occupant,config);
+    return h.confirmed===true;
   }
   function harvestRegulationBox(occupant,isReproduction,config,data){
     var entity=(config&&config.tipoLabel)||"Pianta",box=el("div","harvest-regulation-quote");
@@ -14510,6 +14535,7 @@
     var type=isReproduction?"semi":"ingredienti",h=ensurePlantHarvestState(sub,type,occupant,config),spec=plantHarvestSpecies(occupant),normSpec=plantHarvestNorm(spec),pct=plantHarvestOutcomePct(sub),app=harvestApplicability(occupant,isReproduction,config,sub);
     if(!app.applicable)return null;
     var box=el("div","plant-harvest-resolution harvest-priority-resolver");box.appendChild(el("h4",null,harvestUiIcon(config,isReproduction)+" "+(isReproduction?"Raccogli i tuoi Semi":"Raccogli i tuoi Ingredienti")));
+    if(sub.dispensaTransfer&&sub.dispensaTransfer.done===true&&!sub.dispensaTransfer.needsCorrection){h.confirmed=true;h.resolvedAt=h.resolvedAt||sub.dispensaTransfer.at||new Date().toISOString();}
     if(h.confirmed){box.appendChild(el("div","harvest-summary","<b>Raccolto registrato:</b> "+(String(sub.ottenuti||"").trim()||harvestItemsText(h.items)||"registrato")+"."));return box;}
     if(pct!==33&&pct!==66&&pct!==100){box.appendChild(harvestRegulationBox(occupant,isReproduction,config,null));box.appendChild(el("div","harvest-summary","Prima indica nell’<b>Esito</b> del Ciclo un risultato 0%, 33%, 66% o 100%. Solo con 33/66/100% si determina il raccolto."));return box;}
     var data=null,creatureData=null;
@@ -14521,13 +14547,13 @@
     var standard=null,q=plantHarvestQtySpec(occupant.classificazione,type),isMandragola=entity==="Pianta"&&!isReproduction&&normSpec==="mandragola";
     if(isMandragola){
       box.appendChild(el("div","harvest-note","<b>Mandragola:</b> il regolamento indica fino a 7 Ingredienti per il singolo Ciclo, ma le fonti aggiornate non definiscono in modo univoco il dado quantità/distribuzione. L’Elfo non lo inventa."));
-      var mr=el("div","harvest-result-grid"),ml=el("label",null,"Quantità ottenuta (1–7)"),mi=el("input");mi.type="number";mi.min="1";mi.max="7";mi.value=h.finalQty;mi.addEventListener("change",function(){var v=parseInt(mi.value,10);if(!(v>=1&&v<=7)){mi.value=h.finalQty;return;}h.finalQty=String(v);h.finalManual=true;h.confirmed=false;scheduleSave(0);scheduleSafeFieldRender(240);});ml.appendChild(mi);mr.appendChild(ml);box.appendChild(mr);
+      var mr=el("div","harvest-result-grid"),ml=el("label",null,"Quantità ottenuta (1–7)"),mi=el("input");mi.type="number";mi.min="1";mi.max="7";mi.value=h.finalQty;mi.addEventListener("input",function(){var v=parseInt(mi.value,10);if(v>=1&&v<=7){h.finalQty=String(v);h.finalManual=true;h.confirmed=false;}});mi.addEventListener("change",function(){var v=parseInt(mi.value,10);if(!(v>=1&&v<=7)){mi.value=h.finalQty;return;}h.finalQty=String(v);h.finalManual=true;h.confirmed=false;scheduleSave(0);scheduleSafeFieldRender(300);});ml.appendChild(mi);mr.appendChild(ml);box.appendChild(mr);
     }else if(q){
       var base=q[0],faces=q[1],harvestEntityName=(spec||occupant.nome||entity),code=faces?("[dice=1d"+faces+"]"+(isReproduction?"Semi":"Ingredienti")+" extra — "+entity+" "+occupant.classificazione+" — "+harvestEntityName+"[/dice]"):"";
       var quantityCopyText=faces?(code+" · aggiungi "+base):"";
-      if(faces){box.appendChild(el("div","harvest-code",quantityCopyText));box.appendChild(harvestCopyButton(quantityCopyText,"Copia dado quantità"));var qr=el("div","harvest-result-grid"),ql=el("label",null,"Risultato 1d"+faces),qi=el("input");qi.type="number";qi.min="1";qi.max=String(faces);qi.value=h.quantityRoll;qi.addEventListener("change",function(){var v=parseInt(qi.value,10);if(!(v>=1&&v<=faces)){qi.value=h.quantityRoll;return;}h.quantityRoll=String(v);h.confirmed=false;syncHarvestFinal(h,base+v);scheduleSave(0);scheduleSafeFieldRender(240);});ql.appendChild(qi);qr.appendChild(ql);box.appendChild(qr);var rv=parseInt(h.quantityRoll,10);if(rv>=1&&rv<=faces)standard=base+rv;}else{standard=base;syncHarvestFinal(h,standard);box.appendChild(el("div","harvest-summary","Quantità prevista dalla Classificazione: <b>"+base+"</b> "+(isReproduction?"Semi":"Ingredienti")+"."));}
+      if(faces){box.appendChild(el("div","harvest-code",quantityCopyText));box.appendChild(harvestCopyButton(quantityCopyText,"Copia dado quantità"));var qr=el("div","harvest-result-grid"),ql=el("label",null,"Risultato 1d"+faces),qi=el("input");qi.type="number";qi.min="1";qi.max=String(faces);qi.value=h.quantityRoll;qi.addEventListener("input",function(){var v=parseInt(qi.value,10);if(v>=1&&v<=faces){h.quantityRoll=String(v);h.confirmed=false;syncHarvestFinal(h,base+v);}});qi.addEventListener("change",function(){var v=parseInt(qi.value,10);if(!(v>=1&&v<=faces)){qi.value=h.quantityRoll;return;}h.quantityRoll=String(v);h.confirmed=false;syncHarvestFinal(h,base+v);scheduleSave(0);scheduleSafeFieldRender(300);});ql.appendChild(qi);qr.appendChild(ql);box.appendChild(qr);var rv=parseInt(h.quantityRoll,10);if(rv>=1&&rv<=faces)standard=base+rv;}else{standard=base;syncHarvestFinal(h,standard);box.appendChild(el("div","harvest-summary","Quantità prevista dalla Classificazione: <b>"+base+"</b> "+(isReproduction?"Semi":"Ingredienti")+"."));}
       if(standard!=null)syncHarvestFinal(h,standard);
-      var fq=el("div","harvest-result-grid"),fl=el("label",null,"Quantità finale"),fi=el("input");fi.type="number";fi.min="0";fi.value=h.finalQty;fi.title="Puoi correggere questo totale se al ciclo si applicano bonus o malus già determinati dal regolamento specialistico.";fi.addEventListener("change",function(){var v=parseInt(fi.value,10);if(!(v>=0)){fi.value=h.finalQty;return;}h.finalQty=String(v);h.finalManual=true;h.confirmed=false;scheduleSave(0);scheduleSafeFieldRender(240);});fl.appendChild(fi);fq.appendChild(fl);box.appendChild(fq);
+      var fq=el("div","harvest-result-grid"),fl=el("label",null,"Quantità finale"),fi=el("input");fi.type="number";fi.min="0";fi.value=h.finalQty;fi.title="Puoi correggere questo totale se al ciclo si applicano bonus o malus già determinati dal regolamento specialistico.";fi.addEventListener("input",function(){var v=parseInt(fi.value,10);if(v>=0){h.finalQty=String(v);h.finalManual=true;h.confirmed=false;}});fi.addEventListener("change",function(){var v=parseInt(fi.value,10);if(!(v>=0)){fi.value=h.finalQty;return;}h.finalQty=String(v);h.finalManual=true;h.confirmed=false;scheduleSave(0);scheduleSafeFieldRender(300);});fl.appendChild(fi);fq.appendChild(fl);box.appendChild(fq);
       box.appendChild(el("div","harvest-note","La quantità finale parte dal valore standard della Classificazione. Se lo strumento specialistico aveva determinato bonus/malus specifici, correggila qui senza aggiungere automatismi non previsti."));
     }
     var total=harvestFinalQty(h,isMandragola?7:null);if(total==null||total<=0)return box;
@@ -14540,7 +14566,7 @@
     var quoteText="[quote]<b>Ingredienti ottenibili — "+harvestTargetLabel+"</b>\n"+legendLines.join("\n")+"[/quote]";
     var dice=[];for(var d=0;d<total;d++)dice.push("[dice=1d"+data.items.length+"]Ingrediente "+(d+1)+"/"+total+" — "+harvestTargetLabel+"[/dice]");var dtext=dice.join("\n"),fullDiceText=quoteText+"\n"+dtext;box.appendChild(el("div","harvest-code",fullDiceText));box.appendChild(harvestCopyButton(fullDiceText,"Copia quote + dadi Ingredienti"));
     if(h.distribution.length!==total){var old=h.distribution.slice();h.distribution=Array(total).fill("");for(var oi=0;oi<Math.min(old.length,total);oi++)h.distribution[oi]=old[oi];}
-    var grid=el("div","harvest-result-grid");for(var di=0;di<total;di++){(function(idx){var lab=el("label",null,"Ingrediente "+(idx+1)+" — risultato 1d"+data.items.length),inp=el("input");inp.type="number";inp.min="1";inp.max=String(data.items.length);inp.value=h.distribution[idx]||"";inp.addEventListener("change",function(){var v=parseInt(inp.value,10);if(!(v>=1&&v<=data.items.length)){h.distribution[idx]="";}else h.distribution[idx]=String(v);h.confirmed=false;var items=plantHarvestSummaryFromDistribution(data,h.distribution,total);if(items)applyHarvestItemsToSub(sub,h,items);scheduleSave(0);scheduleSafeFieldRender(240);});lab.appendChild(inp);grid.appendChild(lab);})(di);}box.appendChild(grid);
+    var grid=el("div","harvest-result-grid");for(var di=0;di<total;di++){(function(idx){var lab=el("label",null,"Ingrediente "+(idx+1)+" — risultato 1d"+data.items.length),inp=el("input");inp.type="number";inp.min="1";inp.max=String(data.items.length);inp.value=h.distribution[idx]||"";inp.addEventListener("input",function(){var v=parseInt(inp.value,10);if(v>=1&&v<=data.items.length){h.distribution[idx]=String(v);}else if(String(inp.value||"").trim()===""){h.distribution[idx]="";}h.confirmed=false;});inp.addEventListener("change",function(){var v=parseInt(inp.value,10);if(!(v>=1&&v<=data.items.length)){h.distribution[idx]="";inp.value="";}else h.distribution[idx]=String(v);h.confirmed=false;var items=plantHarvestSummaryFromDistribution(data,h.distribution,total);if(items){applyHarvestItemsToSub(sub,h,items);scheduleSafeFieldRender(300);}else{scheduleSave(80);}});lab.appendChild(inp);grid.appendChild(lab);})(di);}box.appendChild(grid);
     var items=plantHarvestSummaryFromDistribution(data,h.distribution,total);if(items){applyHarvestItemsToSub(sub,h,items);box.appendChild(el("div","harvest-summary","<b>Riepilogo raccolto:</b> "+harvestItemsText(items)));harvestConfirmIfReady(box,occupant,sub,h,isReproduction,config,true);}else box.appendChild(el("div","harvest-note","Inserisci tutti i risultati per ottenere automaticamente i nomi e il riepilogo degli Ingredienti."));
     return box;
   }
@@ -14548,8 +14574,8 @@
   function pendingHarvestEntriesForOccupant(occupant,stages,config,onlyStageKey){
     ensureOccupantStageData(occupant,stages);var out=[];
     for(var si=0;si<stages.length;si++){var st=stages[si];if(onlyStageKey&&st.key!==onlyStageKey)continue;if(st.type!=="cicli"&&st.type!=="ripro")continue;var cd=occupant.cicli[st.key]||{},list=Array.isArray(cd.list)?cd.list:[];
-      for(var i=0;i<list.length;i++){var sub=list[i];if(!subEntryFilled(sub))continue;var app=harvestApplicability(occupant,false,config,sub);if(app.applicable&&!harvestResolutionComplete(occupant,sub,false,config))out.push({occupant:occupant,stage:st,sub:sub,isReproduction:false,keySuffix:"prod-"+i,title:"Ciclo di Produzione "+(i+1)});}
-      if(config.tipoLabel==="Pianta"&&st.type==="ripro"&&cd.evento&&subEntryFilled(cd.evento)){var appR=harvestApplicability(occupant,true,config,cd.evento);if(appR.applicable&&!harvestResolutionComplete(occupant,cd.evento,true,config))out.push({occupant:occupant,stage:st,sub:cd.evento,isReproduction:true,keySuffix:"ripro",title:"Ciclo di Riproduzione 1"});}
+      for(var i=0;i<list.length;i++){var sub=list[i];if(!subEntryFilled(sub))continue;if(sub.dispensaTransfer&&sub.dispensaTransfer.done===true&&!sub.dispensaTransfer.needsCorrection)continue;var app=harvestApplicability(occupant,false,config,sub);if(app.applicable&&!harvestResolutionComplete(occupant,sub,false,config))out.push({occupant:occupant,stage:st,sub:sub,isReproduction:false,keySuffix:"prod-"+i,title:"Ciclo di Produzione "+(i+1)});}
+      if(config.tipoLabel==="Pianta"&&st.type==="ripro"&&cd.evento&&subEntryFilled(cd.evento)&&!(cd.evento.dispensaTransfer&&cd.evento.dispensaTransfer.done===true&&!cd.evento.dispensaTransfer.needsCorrection)){var appR=harvestApplicability(occupant,true,config,cd.evento);if(appR.applicable&&!harvestResolutionComplete(occupant,cd.evento,true,config))out.push({occupant:occupant,stage:st,sub:cd.evento,isReproduction:true,keySuffix:"ripro",title:"Ciclo di Riproduzione 1"});}
     }
     return out;
   }
@@ -14715,6 +14741,7 @@
               if(!seedRes.ok){alert(seedRes.error||"Non sono riuscito ad aggiungere i Semi alla Dispensa.");return;}
               dispensaCycleLedgerAdd(ledgerKey,sub);
               sub.dispensaTransfer={done:true,nome:seedName,quantita:seedQty,items:[{nome:seedName,quantita:seedQty}],tipo:"semi",at:new Date().toISOString(),sourceCycleKey:seedCycleKey,harvestSignature:erbHarvestSignature(sub),ledgerKey:ledgerKey};
+              if(sub.harvest){sub.harvest.confirmed=true;sub.harvest.resolvedAt=sub.harvest.resolvedAt||sub.dispensaTransfer.at;}
               scheduleSave(0);renderAll();if(cycleAnchor)scrollAfterRender(cycleAnchor);
               alert("Aggiunti alla Dispensa: "+seedQty+" × "+seedName+".");
               return;
@@ -14747,6 +14774,7 @@
               if(added.length===prepared.length){
                 dispensaCycleLedgerAdd(ledgerKey,sub);
                 sub.dispensaTransfer={done:true,items:added,at:new Date().toISOString(),sourceCycleKey:cycleSourceKey,harvestSignature:erbHarvestSignature(sub),ledgerKey:ledgerKey};
+                if(sub.harvest){sub.harvest.confirmed=true;sub.harvest.resolvedAt=sub.harvest.resolvedAt||sub.dispensaTransfer.at;}
                 scheduleSave(0);renderAll();if(cycleAnchor)scrollAfterRender(cycleAnchor);
                 alert("Aggiunti alla Dispensa: "+added.map(function(x){return x.quantita+" × "+x.nome;}).join(", ")+".");
                 return;
@@ -14764,6 +14792,7 @@
             if(res.ok){
               dispensaCycleLedgerAdd(ledgerKey,sub);
               sub.dispensaTransfer={done:true,nome:rec.nome,quantita:qty,at:new Date().toISOString(),sourceCycleKey:cycleSourceKey2,harvestSignature:erbHarvestSignature(sub),ledgerKey:ledgerKey};
+              if(sub.harvest){sub.harvest.confirmed=true;sub.harvest.resolvedAt=sub.harvest.resolvedAt||sub.dispensaTransfer.at;}
               scheduleSave(0);renderAll();if(cycleAnchor)scrollAfterRender(cycleAnchor);alert(rec.nome+" aggiunto alla Dispensa come autoprodotto.");
             }
           });
