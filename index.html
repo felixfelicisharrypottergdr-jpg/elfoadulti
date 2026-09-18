@@ -11190,6 +11190,11 @@
           verifyAndCommitGeneralPostLink(candidate,0);
         });
         tdLink.appendChild(iLink);
+        if(isPostExcluded(post)){
+          tr.classList.add("post-row-excluded");
+          tdLink.appendChild(el("div","post-excluded-badge","⚠ Escluso dai conteggi"));
+          tdLink.appendChild(el("div","post-excluded-note","Motivo: "+(String(post.exclusionReason||"").trim()||"non specificato")));
+        }
         if(isSpecialRolePost(post)){
           var sri=specialRoleTypeInfo(post.specialRoleType);
           tdLink.appendChild(el("span","small-note special-role-post-note","↪ "+(sri?sri.label:"Role fuori conteggio")));
