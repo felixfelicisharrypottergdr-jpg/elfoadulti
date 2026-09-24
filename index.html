@@ -1,48 +1,9 @@
+<!-- elfo_adulto_v281 — UX/UI Post allineata allo Studente: gerarchia operativa più chiara, funzioni opzionali nascoste finché inattive, Spin-off prioritario accanto ad Aggiungi post e Bonus del Mese più evidente. Mantiene integralmente v280. 24/09/2026 -->
 <!-- elfo_adulto_v280 — Audit completo Parametri: Piante e Creature riallineate ai cataloghi correnti; regole Coltivatore aggiornate (durata/specifici), alias canonici e Nano escluso da Allevatore; Pozioni complete anche nei Parametri intaccati; cambio nome/specie sincronizza correttamente Parametri e modificazioni senza trascinare override della voce precedente. Mantiene v279. 20/09/2026 -->
 <!-- elfo_adulto_v279 — Pozioni: completati i 21 valori di Forza mancanti nel catalogo interno; allineamento verificato con Pozionistica. Mantiene v278. 20/09/2026 -->
 <!-- elfo_adulto_v278 — Parametri Piante corretti: catalogo interno riallineato integralmente ai Parametri della Guida Erbologia; 91 specie canoniche + alias compatibili. La Specie inserita a mano aggiorna subito Classificazione e Parametri; Link Specie resta solo un riferimento. Mantiene v277. 20/09/2026 -->
 <!-- elfo_adulto_v277 — Pozioni→Parametri immediati: digitando/selezionando il Nome Pozione l’Elfo riconosce subito il catalogo, aggiorna Classificazione, Parametri intaccati e Forza Standard senza rerender distruttivi. Mantiene v276. 20/09/2026 -->
 <!-- elfo_adulto_v276 — Specie→Parametri immediati: digitando/selezionando la Specie in Serra/Riserva l’Elfo riconosce subito il catalogo, aggiorna Classificazione e Parametri senza usare Link Specie e senza rerender distruttivi. Mantiene v275. 20/09/2026 -->
-
-
-<!-- elfo_adulto_v275 — Esclusione Post Narratore: sync realtime legacy + ricalcolo progressioni; mantiene v274. 18/09/2026 -->
-<!-- elfo_adulto_v274 — Colori Classificazione completi: intero specchietto operativo (header + corpo) di Piante, Creature e Pozioni in palette X–XXXXX; allineati anche Archivio e Medicheria. Mantiene integralmente v273. 13/09/2026 -->
-<!-- elfo_adulto_v273 — Parametri: details colorato per Classificazione e allineato fra Piante/Creature/Pozioni; Creature ora usano anche lo sfondo di Classificazione. Raccolti: riconciliazione Dispensa persistente, firma aggiornata e stato inline coerente col riquadro prioritario. 13/09/2026 -->
-<!-- elfo_adulto_v272 — Audit esaustivo finale Parametri: tutte le Piante con effetti temporanei reali vengono riconosciute come Durata salvo regole specifiche; escluse finestre/preparazioni non pertinenti. Estese esclusioni Allevatore future-proof per specie/Esseri esplicitamente non allevabili. Nessuna nuova lettura Firebase. 13/09/2026 -->
-<!-- elfo_adulto_v271 — Solo UI: «Applicazione bonus personale» rinominato in «Correzione manuale (facoltativa)». Nessuna logica modificata. 13/09/2026 -->
-<!-- elfo_adulto_v270 — Audit finale Parametri Piante/Creature: completate esclusioni Allevatore (Basilisco/Oni/Wampus + animali babbani), Horklump usa Coltivatore anche se gestito come Creatura, rimossi falsi bonus durata di Nogtail/Schiopodo. Cataloghi e regole incrociati integralmente col regolamento. Nessuna nuova lettura Firebase. 13/09/2026 -->
-<!-- elfo_adulto_v269 — Terzo audit Parametri Piante/Creature: copertura completa dei bonus Coltivatore espliciti (aggiunta Pianta Mangiauomini), esclusione automatica Allevatore per specie non allevabili/possedibili, pulizia delle false regole durata; nessuna nuova lettura Firebase. 13/09/2026 -->
-<!-- elfo_adulto_v268 — Secondo audit Parametri Piante/Creature: Grinzafico riconosciuto come bonus durata; Creature con effetti temporanei riconosciute automaticamente come durata; Diricawl gestito come effetto specifico; aggiunti Parametri mancanti di Dugbog, Duriccio, Gufo e Rospo; Gatto segnalato come base variabile da 45 punti. Nessuna nuova lettura Firebase. 13/09/2026 -->
-<!-- elfo_adulto_v267 — Parametri: applicazione Coltivatore/Allevatore riconosciuta automaticamente per specie (Parametri/Durata/Effetto specifico), con override manuale; Parametri originali Erbario/Bestiario mostrati separatamente dagli attuali. Aggiunto Drakul al catalogo Bestiario. Mantiene v266. 13/09/2026 -->
-<!-- elfo_adulto_v266 — Raccolti persistenti: la registrazione di Semi/Ingredienti riceve una ricevuta stabile, viene salvata subito e viene ricostruita automaticamente dallo storico Dispensa se un vecchio flag UI manca; il riquadro «Raccolti da completare» non ricompare dopo il rientro nella Serra. 13/09/2026 -->
-<!-- elfo_adulto_v265 — Parametri Piante/Creature/Pozioni: cataloghi ricavati dai regolamenti allegati; fase vitale e bonus Coltivatore/Allevatore calcolati automaticamente quando noti/importati, con override manuali; Pozioni con Parametri intaccati e Forza Standard/finale. Mantiene integralmente v264. 13/09/2026 -->
-<!-- elfo_adulto_v264 — Migrazione Semi legacy resa specie-specifica: un vecchio risultato viene recuperato solo se i Semi appartengono alla stessa Pianta e allo stesso Ciclo di Riproduzione. Nessun'altra funzione modificata. 13/09/2026 -->
-<!-- elfo_adulto_v263 — Semi/Raccolti: recupera automaticamente i risultati Semi già registrati nei vecchi Cicli; compilazione quantità senza rerender durante la digitazione; conferma esplicita; nei raccolti di strutture condivise usa il responsabile del Ciclo quando presente e mostra subito eventuale blocco modifica. 13/09/2026 -->
-<!-- elfo_adulto_v262 — Raccolti: un trasferimento valido già registrato in Dispensa chiude definitivamente il raccolto e non ricompare nei «Raccolti da completare»; gli input numerici dei dadi/raccolti non vengono più distrutti durante la compilazione. 13/09/2026 -->
-<!-- elfo_adulto_v261 — Dispensa: i Semi hanno un details dedicato «Semi», posizionato sopra Ingredienti X; non compaiono più in Ingredienti non classificati. Nessun'altra modifica. 13/09/2026 -->
-<!-- elfo_adulto_v260 — Fix raccolto già trasferito: se il trasferimento in Dispensa è valido, il raccolto è considerato completato anche se il vecchio flag interno «confirmed» era rimasto falso; i nuovi trasferimenti sincronizzano anche quel flag. Nessun'altra funzione modificata. 13/09/2026 -->
-<!-- elfo_adulto_v259 — Taccuino Role: la data è ora «Ambientata al giorno», si sceglie già in Nuova Role e, se lasciata vuota, usa la data di apertura della Role. Nessun'altra funzione modificata. 13/09/2026 -->
-<!-- elfo_adulto_v258 — Audit campi Creature/Pozioni: i blur dei campi non distruggono più il pulsante che il Player sta cliccando; rerender differito per Cicli/raccolti e Pulizia Pozioni, campi nome/link salvati senza salto. Mantiene v257 e tutti i fix conteggi/avvisi/copia. 13/09/2026 -->
-<!-- elfo_adulto_v257 — Trasferimento raccolti: primo click non più perso dal blur/rerender; Ciclo resta aperto e in vista; Semi delle Piante trasferibili in Dispensa come materiale di coltivazione non commerciabile; trasferimento atomico e ledger invariati. 13/09/2026 -->
-<!-- elfo_adulto_v256 — Copia senza salto pagina: preserva scroll/focus anche nel fallback execCommand e blocca il comportamento predefinito dei pulsanti Copia; mantiene audit Conteggi/Avvisi v255. 13/09/2026 -->
-<!-- elfo_adulto_v255 — Secondo audit Conteggi/Avvisi: flush dei Post prima di ogni rerender/navigazione, prevenzione 7/8 stale dopo cambio sezione; avvisi Cicli chiusi automaticamente quando il Player prosegue; navigazione apre il Ciclo esatto anche nello storico. Nessuna nuova lettura Firebase; 13/09/2026 -->
-<!-- elfo_adulto_v254 — Conteggi e Avvisi: i conteggi usano i primi N Post validi dal N. globale iniziale, saltano buchi/Role escluse; fix aggiornamento immediato dei nuovi Post; avvisi stabili per firma, «Vai alla sezione» li chiude e raggiunge l’attività; Cicli 0% gestiti senza riavvisi; 13/09/2026 -->
-<!DOCTYPE html>
-<!-- elfo_adulto_v253 — Audit testi UX: guide, tutorial, avvisi e messaggi riscritti per i Player; rimossi dettagli tecnici visibili senza modificare funzioni o salvataggi; 12/09/2026 -->
-<!-- elfo_adulto_v252 — Taccuino UX/UI: Role compatte con Nuova Role in alto; raccolte semplificate; unico Altro personalizzato; Cronologia filtrabile/ordinabile con preferenza locale; Missioni in corso + archivio concluse; nessuna nuova lettura Firebase; 12/09/2026 -->
-<!-- elfo_adulto_v251 — UI Fasi/Cicli: rimosso Avvio conteggi duplicato; Riepilogo Cicli sempre visibile con Fase attuale in grassetto; Agenda crescita OFF spostata dopo lo storico; 12/09/2026 -->
-<!-- elfo_adulto_v250 — Conteggi Cicli: Post necessari indipendenti dal n° globale; avvio esplicito dal primo Post; startIndex vuoto finché il conteggio non parte; compatibile con PG responsabili condivisi; 12/09/2026 -->
-<!-- elfo_adulto_v249 — Cicli 0%: conferma TERMINATO + avanzamento; storico Fasi piatto con un solo details per fase; 12/09/2026 -->
-<!-- elfo_adulto_v248 — ponte Felix Token: esporta stato chiuso/accreditato dei Mesi per missioni periodiche, senza nuove letture Firebase; 12/09/2026 -->
-<!-- elfo_adulto_v247 — ponte Felix Token v2: Role concluse + mesi consecutivi esportati localmente, nessuna lettura Firebase aggiuntiva; 11/09/2026 -->
-<!-- elfo_adulto_v246 — ponte locale Felix Token: esporta mesi/Post della Camera Blindata in localStorage condiviso, senza letture Firebase aggiuntive; 11/09/2026 -->
-<!-- elfo_adulto_v245 — strutture condivise: gestione rapida in Connessione anche con tick disattivato; fallback eliminazione/uscita se una scheda Laboratorio non renderizza. -->
-<!-- elfo_adulto_v244 — accrediti Narratore autoritativi: ricarica cloud automatica senza popup; veri conflitti player invariati. -->
-<!-- elfo_adulto_v243 — fix UI Taccuino silenziosa: usa TACC_CLOUD_TEXT/TACC_CLOUD_ERROR originali e nessun renderAll dal setter. -->
-<!-- elfo_adulto_v242 — UI Taccuino cloud silenziosa: nessun messaggio per attesa/sync riuscita; solo errori/avvisi reali. -->
-<!-- elfo_adulto_v241 — Taccuino: permission-denied non ritenta; copia locale esplicitata. Fix fallback conflitto generale: rimosso riferimento `deleted` fuori scope. Richiede Rules v60 per cloudRevision. -->
-<!-- elfo_adulto_v240 — audit salvataggi/I tuoi Post: Recovery baseline compatta + flush campo attivo su Salva/pagehide/Disconnetti/Cambia Elfo. -->
-<!-- elfo_adulto_v239 — salvataggio generale: flush centrale dei link Post prima di ogni serializedSaveLatest; copre autosave, Salva, Disconnetti, Cambia Elfo e retry. -->
 <html lang="it">
 <head>
 <meta charset="UTF-8">
@@ -1998,6 +1959,71 @@
   .special-role-body{padding:8px 10px 10px}
   .special-role-post-note{display:block;margin-top:4px;font-weight:800;color:#6b4b18}
   .special-role-reward-box{display:inline-block;margin-left:7px;padding:3px 7px;border:1px solid rgba(169,128,58,.55);border-radius:7px;background:rgba(255,248,224,.82);font-size:.72rem;font-weight:800;white-space:nowrap;color:#6b4b18;vertical-align:middle}
+
+
+  /* v281 — Gerarchia UX/UI dei Post, allineata allo Studente. */
+  .steps-nav{
+    gap:8px;padding:10px;border:1px solid rgba(184,139,61,.45);border-radius:10px;
+    background:rgba(20,15,10,.22);box-shadow:0 4px 14px rgba(0,0,0,.16);
+  }
+  .step-btn{min-height:38px;padding:9px 13px;opacity:.88;font-weight:700;box-shadow:0 2px 7px rgba(0,0,0,.12);}
+  .step-btn.active{opacity:1;transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.24),inset 0 0 0 1px rgba(255,255,255,.22);}
+  .posts-primary-box{
+    margin:14px 0 20px;padding:14px 16px;border:2px solid var(--gold);border-radius:9px;
+    background:rgba(255,253,245,.80);box-shadow:0 4px 12px rgba(0,0,0,.08);
+  }
+  .posts-primary-box h3{margin:0 0 6px;color:var(--green-dark);font-size:1rem;}
+  .posts-primary-box .row{align-items:end;}
+  .posts-primary-box .month-create-actions{margin:10px 0 0;}
+  details.optional-post-tools{
+    margin:18px 0 0;padding:8px 10px 10px;border:1px dashed rgba(128,96,42,.45);
+    border-radius:8px;background:rgba(255,255,255,.26);
+  }
+  details.optional-post-tools>summary{cursor:pointer;font-weight:800;color:#65563e;font-size:.82rem;}
+  .healing-posts-manager.healing-active-visible,.healing-active-visible .healing-posts-manager{
+    border:2px solid rgba(127,45,54,.45);background:rgba(248,232,234,.52);
+  }
+  .post-spin-off-panel[hidden]{display:none!important;}
+  .post-spin-off-panel{margin:12px 0 0;min-width:0;}
+  .post-spin-off-panel .spin-off-priority{
+    margin:0!important;border:3px solid #c4344f!important;border-radius:10px!important;
+    background:#ffe4e7!important;box-shadow:0 5px 15px rgba(170,31,61,.15)!important;overflow:hidden;
+  }
+  .post-spin-off-panel .spin-off-priority>summary{
+    display:block!important;margin:0!important;padding:16px 17px!important;font-size:1rem!important;
+    line-height:1.45!important;color:#751129!important;font-weight:900!important;background:#ffced6!important;cursor:pointer;
+  }
+  .post-spin-off-panel .spin-off-priority>summary::marker{color:#8e1630;}
+  .post-spin-off-panel .spin-off-priority[open]>summary{border-bottom:2px solid #d95a70;}
+  .post-spin-off-panel .spin-off-priority .special-role-body{padding:14px!important;}
+  .post-spin-off-panel .spin-off-required-note{padding:12px 14px;background:#fff3f4;border-left:5px solid #c4344f;color:#6f1930;font-size:.89rem;line-height:1.6;}
+  .post-spin-off-panel .spin-off-link-field>label{font-size:.89rem;color:#711329;}
+  .post-spin-off-panel .spin-off-link-field label::after{content:"  • obbligatorio";color:#8c2f2f;font-weight:900;}
+  .post-spin-off-panel .spin-off-link-field input{min-height:43px;border:2px solid #b83551;background:white;}
+  .post-spin-off-panel .spin-off-register-btn{background:#a51e3e!important;color:white!important;border:1px solid #7b1530!important;font-size:.89rem!important;min-height:43px;font-weight:900!important;}
+  .post-spin-off-panel .spin-off-register-btn:hover{background:#74102b!important;}
+  .post-preflight{margin:17px 0 2px;padding:13px 14px 15px;border:1px solid rgba(69,61,50,.32);border-radius:10px;background:#f7f5f0;}
+  .post-preflight-heading{font-size:.9rem;font-weight:900;color:#342d26;margin-bottom:11px;}
+  .post-preflight-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;}
+  .post-setup-tile{display:flex;flex-direction:column;align-items:flex-start;gap:7px;padding:10px 11px;border-radius:9px;border:2px solid transparent;min-width:0;}
+  .post-setup-tile-title{display:block;font-size:.79rem;letter-spacing:.025em;line-height:1.25;}
+  .post-setup-tile p{margin:0;line-height:1.4;font-size:.75rem;flex:1;}
+  .post-setup-tile .post-setup-link{margin:4px 0 0!important;padding:9px 12px;border-radius:6px;font-size:.73rem;font-weight:850;line-height:1.35;cursor:pointer;min-height:38px;text-align:left;width:100%;}
+  .post-setup-link:disabled{opacity:.48;cursor:not-allowed;}
+  .post-setup-spin{border-color:#ca3655;background:#ffe8ed;color:#71142b;}
+  .post-setup-spin .post-setup-link{background:#9b2042;color:white;border:1px solid #861430;}
+  .post-setup-spin .post-setup-link:hover:not(:disabled){background:#761332;}
+  .post-setup-bonus{border-color:#9163aa;background:#f3e8fa;color:#513064;}
+  .post-setup-bonus .post-setup-link{background:#664080;color:white;border:1px solid #4c2961;}
+  .post-setup-bonus .post-setup-link:hover:not(:disabled){background:#4c2961;}
+  .post-actions-primary{padding-top:13px!important;margin-top:10px!important;}
+  .post-actions-primary>.action{min-height:42px;padding:10px 18px;font-size:.9rem;font-weight:850;}
+  .post-bonus-target{border:2px solid #8f61a4!important;border-left:5px solid #8f61a4!important;background:#f7eef9!important;}
+  .post-bonus-target>summary{font-size:1rem!important;color:#593769!important;background:#eddef4;padding:12px 10px!important;border-radius:6px;}
+  .post-bonus-target[open]>summary{margin-bottom:12px;}
+  .post-setup-link:focus-visible,.post-spin-off-panel .spin-off-priority>summary:focus-visible{outline:3px solid #2366b1;outline-offset:3px;}
+  @media(max-width:620px){.steps-nav{justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;}.step-btn{flex:0 0 auto;}}
+  @media(max-width:540px){.post-preflight-grid{grid-template-columns:1fr;}}
 </style>
 
 <style id="elfo-v41-harvest-style">
@@ -4876,10 +4902,10 @@
   }
   function renderSpecialRoleManager(parent){
     SPECIAL_ROLE_REGISTRY=normalizeSpecialRoleRegistry(SPECIAL_ROLE_REGISTRY);
-    var det=el("details","stage special-role-manager");keepDetailsState(det,"posts:special-role-manager",false);
-    det.appendChild(el("summary",null,"↪ Linea dell’Età · Giratempo · Trix Tristis ("+SPECIAL_ROLE_REGISTRY.length+")"));
+    var det=el("details","stage special-role-manager spin-off-priority");det.id="posts-spin-off-manager";keepDetailsState(det,"posts:special-role-manager",false);
+    det.appendChild(el("summary",null,"⚠ SPIN-OFF · LINK DELLA ROLE OBBLIGATORIO PRIMA DEI POST"+(SPECIAL_ROLE_REGISTRY.length?" · "+SPECIAL_ROLE_REGISTRY.length+" attive":"")+" · apri per registrare →"));
     var body=el("div","special-role-body");
-    body.appendChild(el("p","small-note","Per <b>Linea dell’Età</b>, <b>Giratempo</b> e <b>Trix Tristis</b> registra una volta il link della Role. Tutti i Post dello stesso topic verranno riconosciuti automaticamente in «I tuoi Post», ma <b>non riceveranno N. globale</b>, non entreranno in Camera Blindata e non faranno avanzare Coltivazioni, Allevamenti, Pozioni o Guarigioni."));
+    body.appendChild(el("div","spin-off-required-note","<b>Importante:</b> se la Role è giocata in <b>Linea dell’Età</b>, <b>Giratempo</b> o <b>Trix Tristis</b>, <b>prima di inserire i singoli Post devi registrare qui il link della Role</b>. Basta farlo una sola volta: l’Elfo riconoscerà poi automaticamente tutti i Post dello stesso topic e applicherà le regole dello Spin-off."));
     if(SPECIAL_ROLE_REGISTRY.length){
       for(var i=0;i<SPECIAL_ROLE_REGISTRY.length;i++){(function(entry){
         var row=el("div","healing-role-row"),main=el("div");
@@ -4899,14 +4925,14 @@
     }else{
       body.appendChild(el("p","small-note","Nessuna Role fuori conteggio attiva."));
     }
-    var add=el("div","row"),c1=el("div"),c2=el("div");
+    var add=el("div","row"),c1=el("div","spin-off-link-field"),c2=el("div");
     c1.appendChild(el("label",null,"Link della Role"));
-    var inp=el("input");inp.type="text";inp.placeholder="https://.../?t=...";inp.disabled=!EDIT_UNLOCKED;c1.appendChild(inp);
+    var inp=el("input");inp.type="url";inp.required=true;inp.placeholder="Incolla qui il link della Role spin-off";inp.disabled=!EDIT_UNLOCKED;inp.setAttribute("aria-label","Link obbligatorio della Role spin-off");c1.appendChild(inp);
     c2.appendChild(el("label",null,"Sezione"));
     var sel=el("select");sel.disabled=!EDIT_UNLOCKED;
     [["","— scegli —"],["linea_eta","Linea dell’Età"],["giratempo","Giratempo"],["trix_tristis","Trix Tristis"]].forEach(function(o){var op=el("option");op.value=o[0];op.textContent=o[1];sel.appendChild(op);});c2.appendChild(sel);
     add.appendChild(c1);add.appendChild(c2);body.appendChild(add);
-    var btn=el("button","action small","+ Registra Role");btn.type="button";btn.disabled=!EDIT_UNLOCKED;
+    var btn=el("button","action spin-off-register-btn","+ Registra Role Spin-off");btn.type="button";btn.disabled=!EDIT_UNLOCKED;
     btn.addEventListener(EV,function(){
       if(!EDIT_UNLOCKED){alert("Accedi alla modifica dell’Elfo.");return;}
       var res=registerSpecialRole(inp.value,sel.value);
@@ -10910,12 +10936,85 @@
   /* ==================================================== */
   /* STEP 1 - POST RAGGRUPPATI PER MESE                     */
   /* ==================================================== */
+  function renderHealingProgressive(parent){
+    var healings=(TACCUINO&&Array.isArray(TACCUINO.healings))?TACCUINO.healings:[];
+    var active=healings.filter(function(h){return h&&h.status!=="completed";});
+    if(active.length){
+      var holder=el("div","healing-active-visible");
+      renderHealingPostsManager(holder);
+      parent.appendChild(holder);
+      return;
+    }
+    var optional=el("details","optional-post-tools");
+    keepDetailsState(optional,"posts:optional-tools",false);
+    optional.appendChild(el("summary",null,"Altre funzioni · Guarigioni"));
+    var body=el("div");
+    body.appendChild(el("p","small-note","Apri questa sezione solo se devi importare, creare o consultare una Guarigione. Finché non è attiva, resta fuori dal flusso principale dei Post."));
+    renderHealingPostsManager(body);
+    optional.appendChild(body);
+    parent.appendChild(optional);
+  }
+
+  function openPostsSpinOffManager(sourceButton){
+    var panel=document.getElementById("posts-spin-off-manager");
+    var slot=document.getElementById("posts-spin-off-slot");
+    if(!panel||!slot)return;
+    var preflight=sourceButton&&sourceButton.closest?sourceButton.closest(".post-preflight"):null;
+    if(preflight){preflight.appendChild(slot);}
+    slot.hidden=false;
+    panel.open=true;OPEN_DETAILS["posts:special-role-manager"]=true;
+    setTimeout(function(){
+      if(!document.body.contains(panel))return;
+      panel.scrollIntoView({behavior:"smooth",block:"nearest"});
+      var input=panel.querySelector(".spin-off-link-field input");
+      if(input&&!input.disabled){try{input.focus({preventScroll:true});}catch(e){input.focus();}}
+    },30);
+  }
+
+  function openPostsBonusManager(mese){
+    if(!MESI.length){alert("Crea prima un Mese, poi configura il Bonus.");return;}
+    var idx=mese?MESI.indexOf(mese):-1;
+    if(idx<0){for(var i=MESI.length-1;i>=0;i--){if(!MESI[i].chiuso){idx=i;break;}}}
+    if(idx<0)idx=MESI.length-1;
+    meseSelezionatoBlindataIdx=idx;
+    OPEN_DETAILS["camera-blindata:bonus:"+String(MESI[idx].id)]=true;
+    currentStep="blindata";
+    renderAll({skipAutoSave:true});
+    setTimeout(function(){
+      var target=document.getElementById("cb-month-bonuses");
+      if(!target)return;
+      target.open=true;
+      target.scrollIntoView({behavior:"smooth",block:"start"});
+      var input=target.querySelector('input:not([disabled])');
+      if(input){try{input.focus({preventScroll:true});}catch(e){}}
+    },40);
+  }
+
+  function postSetupShortcut(kind,mese){
+    var titles={spin:"⚠ SPIN-OFF",bonus:"BONUS"};
+    var desc={
+      spin:"Trix Tristis, Giratempo o Linea dell’Età? Il link della Role va registrato <b>prima</b> di inserire i Post.",
+      bonus:"Hai un premio da Evento, Trama o un altro Bonus? Configuralo nella Camera Blindata del Mese."
+    };
+    var buttonText={spin:"Registra link Spin-off →",bonus:"Imposta Bonus del Mese →"};
+    var tile=el("div","post-setup-tile post-setup-"+kind+" compact");
+    tile.appendChild(el("strong","post-setup-tile-title",titles[kind]));
+    tile.appendChild(el("p",null,desc[kind]));
+    var btn=el("button","post-setup-link elfo-readonly-safe",buttonText[kind]);btn.type="button";
+    if(kind==="bonus"&&!MESI.length){btn.disabled=true;btn.title="Crea prima un Mese";}
+    btn.addEventListener(EV,function(){
+      if(kind==="spin")openPostsSpinOffManager(btn);
+      else openPostsBonusManager(mese);
+    });
+    tile.appendChild(btn);
+    return tile;
+  }
+
   function renderPostsStep(container){
     var p = el("div", "panel");
     p.appendChild(el("h2", null, "I tuoi Post"));
     p.appendChild(el("div", "guide-text",
-      "Dividi i Post per Mese e aggiungi il link di ogni nuovo Post. L’Elfo assegna automaticamente il <b>N. globale</b> usato nei conteggi di Laboratorio, Serra e Riserva, così i progressi avanzano senza dover ricopiare i Post nelle altre sezioni. Le Role di <b>Linea dell’Età, Giratempo e Trix Tristis</b> vanno invece in «Role fuori conteggio»: restano visibili e maturano i premi previsti, ma non entrano in Camera Blindata né nei conteggi delle lavorazioni o delle Guarigioni."));
-    renderSpecialRoleManager(p);
+      "Qui fai soprattutto due cose: <b>crei il Mese</b> e <b>incolli i link dei Post</b>. Il resto viene calcolato dall’Elfo. Se il Post appartiene a <b>Linea dell’Età, Giratempo o Trix Tristis</b>, usa prima l’avviso Spin-off che trovi accanto ad «Aggiungi post»."));
 
     var legacyDupMonths = duplicateMonthNames();
     if(legacyDupMonths.length){
@@ -10927,9 +11026,12 @@
       p.appendChild(el("div","warning-alert","⚠ Sono stati rilevati numeri globali duplicati in dati precedenti: <b>"+duplicateGlobals.join(", ")+"</b>. Se trovi numeri globali duplicati, non eliminare o correggere i Post coinvolti: chiedi prima al Narratore di verificarli."));
     }
 
-    var newMonthRow=el("div","row"),newMonthCell=el("div");newMonthCell.appendChild(el("label",null,"Mese e Anno da creare"));
-    var newMonthInput=el("input");newMonthInput.type="text";newMonthInput.placeholder="Es. Settembre 2026";newMonthCell.appendChild(newMonthInput);newMonthRow.appendChild(newMonthCell);p.appendChild(newMonthRow);
-    var addMeseBtn = el("button", "action", "+ Nuovo Mese");
+    var monthCreateBox=el("div","posts-primary-box");
+    monthCreateBox.appendChild(el("h3",null,"Crea un nuovo Mese"));
+    monthCreateBox.appendChild(el("p","small-note","È il punto di partenza. Scrivi ad esempio «Settembre 2026» e poi crea il Mese."));
+    var newMonthRow=el("div","row"),newMonthCell=el("div");newMonthCell.appendChild(el("label",null,"Mese e Anno"));
+    var newMonthInput=el("input");newMonthInput.type="text";newMonthInput.placeholder="Es. Settembre 2026";newMonthCell.appendChild(newMonthInput);newMonthRow.appendChild(newMonthCell);monthCreateBox.appendChild(newMonthRow);
+    var addMeseBtn = el("button", "action", "+ Crea Mese");
     addMeseBtn.addEventListener(EV, function(){
       var candidate=canonicalMonthName(newMonthInput.value);
       if(!candidate){alert("Inserisci un Mese valido nel formato «Settembre 2026» (nome del mese + anno a quattro cifre).");return;}
@@ -10939,12 +11041,21 @@
     });
     var monthCreateActions=el("div","month-create-actions");
     monthCreateActions.appendChild(addMeseBtn);
-    p.appendChild(monthCreateActions);
+    monthCreateBox.appendChild(monthCreateActions);
+    p.appendChild(monthCreateBox);
+
+    /* Il modulo Spin-off esiste una sola volta e resta nascosto finché non viene richiesto
+       dal riquadro accanto ad «Aggiungi post». */
+    var spinOffSlot=el("div","post-spin-off-panel");
+    spinOffSlot.id="posts-spin-off-slot";
+    spinOffSlot.hidden=true;
+    renderSpecialRoleManager(spinOffSlot);
+    p.appendChild(spinOffSlot);
 
     if(MESI.length === 0){
       p.appendChild(el("div", "guide-text", "Nessun Mese ancora creato. Premi \u00ab+ Nuovo Mese\u00bb per cominciare."));
       p.appendChild(el("div","divider"));
-      renderHealingPostsManager(p);
+      renderHealingProgressive(p);
       container.appendChild(p);
       return;
     }
@@ -11019,7 +11130,7 @@
     p.appendChild(globalDet);
     p.appendChild(el("p", null, "<b>Post registrati: " + POSTS.length + "</b> — Ultimo Post globale assegnato: <b>" + globalPostCounter + "</b>"));
     p.appendChild(el("div","divider"));
-    renderHealingPostsManager(p);
+    renderHealingProgressive(p);
     container.appendChild(p);
   }
 
@@ -11304,7 +11415,16 @@
       }
       addPostAfterChecks();
     });
-    var postActions=el("div","month-post-actions");
+    if(!mese.chiuso && !accreditato && !isImportedStudentMonth(mese)){
+      var preflight=el("div","post-preflight");
+      preflight.appendChild(el("div","post-preflight-heading","Prima di premere «Aggiungi post»: ci sono casi particolari?"));
+      var preflightGrid=el("div","post-preflight-grid");
+      preflightGrid.appendChild(postSetupShortcut("spin",mese));
+      preflightGrid.appendChild(postSetupShortcut("bonus",mese));
+      preflight.appendChild(preflightGrid);
+      card.appendChild(preflight);
+    }
+    var postActions=el("div","month-post-actions post-actions-primary");
     postActions.appendChild(addBtn);
     card.appendChild(postActions);
 
@@ -12081,10 +12201,10 @@
     }
 
     var bonusLocked = !!(meseObj.chiuso && archiveLocked(meseObj)) || monthIsAccredited(meseObj) || isImportedStudentMonth(meseObj) || (fbConnected && !accreditiVerified());
-    var bonusBox=el("details","card bonus-details");
+    var bonusBox=el("details","card bonus-details post-bonus-target");bonusBox.id="cb-month-bonuses";
     keepDetailsState(bonusBox,"camera-blindata:bonus:"+String(meseObj.id),false);
     var bonusSummaryCount=activeMonthBonuses(meseObj).length;
-    bonusBox.appendChild(el("summary","bonus-details-summary","🎉 Bonus"+(bonusSummaryCount>0?" · "+bonusSummaryCount+" attivo"+(bonusSummaryCount===1?"":"i"):"")));
+    bonusBox.appendChild(el("summary","bonus-details-summary","BONUS · Eventi, Trame e altri premi"+(bonusSummaryCount>0?" · "+bonusSummaryCount+" attivo"+(bonusSummaryCount===1?"":"i"):" · apri per aggiungerli →")));
     bonusBox.appendChild(el("div","bonus-quick-help","Imposta qui il premio. Se ha un numero di usi, scegli <b>A utilizzi sui post</b>: nelle righe sotto comparirà direttamente la casellina <b>Usi X/Y</b>."));
     var bonusHelp=el("details","bonus-help");
     bonusHelp.appendChild(el("summary",null,"Come configurare i diversi tipi di Bonus"));
