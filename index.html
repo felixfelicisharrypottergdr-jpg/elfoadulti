@@ -1,3 +1,4 @@
+<!-- elfo_adulto_v283 — Fix Mesi archiviati: per i Mesi già accreditati la transizione aperto→archiviato viene ora persistita senza riaprire il Mese al successivo salvataggio; restano protetti Post e Bonus e resta vietata la riapertura finché l'accredito non viene revocato. Mantiene integralmente v282. 05/10/2026 -->
 <!-- elfo_adulto_v282 — Parametri Sociali: corretta l'eccezione Prestigio degli Adulti (0–3 Post −1; da 4 Post +1), mantenendo la regola generale −1/−0,5/0 per gli altri Parametri; il riquadro DA ACCREDITARE mostra ora anche variazioni positive. Mantiene integralmente v281. 28/09/2026 -->
 <!-- elfo_adulto_v281 — UX/UI Post allineata allo Studente: gerarchia operativa più chiara, funzioni opzionali nascoste finché inattive, Spin-off prioritario accanto ad Aggiungi post e Bonus del Mese più evidente. Mantiene integralmente v280. 24/09/2026 -->
 <!-- elfo_adulto_v280 — Audit completo Parametri: Piante e Creature riallineate ai cataloghi correnti; regole Coltivatore aggiornate (durata/specifici), alias canonici e Nano escluso da Allevatore; Pozioni complete anche nei Parametri intaccati; cambio nome/specie sincronizza correttamente Parametri e modificazioni senza trascinare override della voce precedente. Mantiene v279. 20/09/2026 -->
@@ -2688,9 +2689,18 @@
         var changedLocally=bm?!txAccreditedMonthEquivalent(bm,pm):!txAccreditedMonthEquivalent(rm,pm);
         var alreadyRemote=txAccreditedMonthEquivalent(rm,pm);
         if(changedLocally&&!alreadyRemote){throw new Error("accredited-month-conflict");}
-        /* Anche se la copia locale contiene vecchi default/migrazioni tecniche,
-           il Mese accreditato scritto nel documento resta quello già presente nel cloud. */
-        out[pidx]=rm;
+        /* Un Mese accreditato resta autoritativo per Post e Bonus, ma deve poter essere
+           archiviato dal Player. La sola transizione ammessa è aperto -> chiuso:
+           conserviamo quindi integralmente la copia remota e trasferiamo soltanto
+           chiuso/_archivedAt dalla proposta locale. La riapertura resta vietata. */
+        if(!rm.chiuso && pm.chiuso){
+          var archivedRemote=Object.assign({},rm);
+          archivedRemote.chiuso=true;
+          if(pm._archivedAt){archivedRemote._archivedAt=pm._archivedAt;}
+          out[pidx]=archivedRemote;
+        }else{
+          out[pidx]=rm;
+        }
       }else{
         /* Se la baseline conteneva il Mese ma la proposta no, è una vera rimozione locale. */
         if(bm){throw new Error("accredited-month-conflict");}
