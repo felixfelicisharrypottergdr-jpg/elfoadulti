@@ -1,4 +1,4 @@
-<!-- elfo_adulto_v283 — Fix Mesi archiviati: per i Mesi già accreditati la transizione aperto→archiviato viene ora persistita senza riaprire il Mese al successivo salvataggio; restano protetti Post e Bonus e resta vietata la riapertura finché l'accredito non viene revocato. Mantiene integralmente v282. 05/10/2026 -->
+<!-- elfo_adulto_v283 — Fix salvataggio strutture condivise: il normale update del contenuto non invia più editingBy/editingAt insieme a facility/revision (le Firestore Rules li consentono solo nell'update separato di presenza in modifica). Aggiunta protezione anti-loop: la stessa modifica fallita non viene ritentata e notificata all'infinito finché i dati non cambiano. Mantiene integralmente v282. 06/10/2026 -->
 <!-- elfo_adulto_v282 — Parametri Sociali: corretta l'eccezione Prestigio degli Adulti (0–3 Post −1; da 4 Post +1), mantenendo la regola generale −1/−0,5/0 per gli altri Parametri; il riquadro DA ACCREDITARE mostra ora anche variazioni positive. Mantiene integralmente v281. 28/09/2026 -->
 <!-- elfo_adulto_v281 — UX/UI Post allineata allo Studente: gerarchia operativa più chiara, funzioni opzionali nascoste finché inattive, Spin-off prioritario accanto ad Aggiungi post e Bonus del Mese più evidente. Mantiene integralmente v280. 24/09/2026 -->
 <!-- elfo_adulto_v280 — Audit completo Parametri: Piante e Creature riallineate ai cataloghi correnti; regole Coltivatore aggiornate (durata/specifici), alias canonici e Nano escluso da Allevatore; Pozioni complete anche nei Parametri intaccati; cambio nome/specie sincronizza correttamente Parametri e modificazioni senza trascinare override della voce precedente. Mantiene v279. 20/09/2026 -->
@@ -2689,18 +2689,9 @@
         var changedLocally=bm?!txAccreditedMonthEquivalent(bm,pm):!txAccreditedMonthEquivalent(rm,pm);
         var alreadyRemote=txAccreditedMonthEquivalent(rm,pm);
         if(changedLocally&&!alreadyRemote){throw new Error("accredited-month-conflict");}
-        /* Un Mese accreditato resta autoritativo per Post e Bonus, ma deve poter essere
-           archiviato dal Player. La sola transizione ammessa è aperto -> chiuso:
-           conserviamo quindi integralmente la copia remota e trasferiamo soltanto
-           chiuso/_archivedAt dalla proposta locale. La riapertura resta vietata. */
-        if(!rm.chiuso && pm.chiuso){
-          var archivedRemote=Object.assign({},rm);
-          archivedRemote.chiuso=true;
-          if(pm._archivedAt){archivedRemote._archivedAt=pm._archivedAt;}
-          out[pidx]=archivedRemote;
-        }else{
-          out[pidx]=rm;
-        }
+        /* Anche se la copia locale contiene vecchi default/migrazioni tecniche,
+           il Mese accreditato scritto nel documento resta quello già presente nel cloud. */
+        out[pidx]=rm;
       }else{
         /* Se la baseline conteneva il Mese ma la proposta no, è una vera rimozione locale. */
         if(bm){throw new Error("accredited-month-conflict");}
@@ -3116,7 +3107,7 @@
         if(remoteRev!==Math.max(0,parseInt(expectedRevision,10)||0)){throw new Error("shared-revision-conflict");}
         if(sharedCleanList(cur.memberIds).indexOf(actor)<0){throw new Error("shared-not-member");}
         var nextRev=remoteRev+1; var act=sharedActivityPush(cur.activity,sharedEvent(actor,"update",summary||"Struttura condivisa aggiornata.",undoFacility||cur.facility,nextRev));
-        var patch=fbPrepareWriteData({facility:facilityObj||{},revision:nextRev,updatedAt:serverTimestamp(),updatedBy:actor,editingBy:actor,editingAt:serverTimestamp(),activity:act},"sharedFacility");
+        var patch=fbPrepareWriteData({facility:facilityObj||{},revision:nextRev,updatedAt:serverTimestamp(),updatedBy:actor,activity:act},"sharedFacility");
         tx.update(ref,patch); return nextRev;
       });
       window.fbLastSharedSaveError=null;
@@ -5555,6 +5546,8 @@
   var SHARED_FACILITY_REMOVALS = {};
   var SHARED_FACILITY_BASELINES = {};
   var SHARED_FACILITY_SAVE_TIMERS = {};
+  var SHARED_FACILITY_SAVE_FAILED_FP = {};
+  var SHARED_FACILITY_SAVE_ALERT_SIG = {};
   var SHARED_FACILITY_WATCH_UNSUB = null;
   var SHARED_FACILITY_WATCH_PG = "";
   var SHARED_FACILITY_SYNC_ERROR = "";
@@ -5843,8 +5836,23 @@
     return out.slice(0,6).join(" · ");
   }
   function sharedTouchEditing(fac){if(!fac||!fac._sharedRemote||!fac._sharedId||!EDIT_UNLOCKED||!window.fbTouchSharedEditing)return;var id=fac._sharedId,now=Date.now(),last=Number(SHARED_FACILITY_EDIT_TOUCH[id]||0);if(now-last<75000)return;SHARED_FACILITY_EDIT_TOUCH[id]=now;window.fbTouchSharedEditing(id,PG_ID).catch(function(){});}
+  function sharedSaveAlertOnce(id,fp,code,message){
+    var sig=String(fp||"")+"|"+String(code||"error");
+    if(SHARED_FACILITY_SAVE_ALERT_SIG[id]===sig)return;
+    SHARED_FACILITY_SAVE_ALERT_SIG[id]=sig;
+    alert(message);
+  }
   function sharedScheduleOneSave(fac,delay){
-    if(!fac||!fac._sharedRemote||!fac._sharedId||fac._sharedConflict||!EDIT_UNLOCKED||!fbConnected||!window.fbSaveSharedFacility)return;var id=fac._sharedId,base=SHARED_FACILITY_BASELINES[id];if(typeof base!=="string")return;var fp=sharedFacilityFingerprint(fac);if(fp===base)return;sharedTouchEditing(fac);if(SHARED_FACILITY_SAVE_TIMERS[id])clearTimeout(SHARED_FACILITY_SAVE_TIMERS[id]);
+    if(!fac||!fac._sharedRemote||!fac._sharedId||fac._sharedConflict||!EDIT_UNLOCKED||!fbConnected||!window.fbSaveSharedFacility)return;
+    var id=fac._sharedId,base=SHARED_FACILITY_BASELINES[id];if(typeof base!=="string")return;
+    var fp=sharedFacilityFingerprint(fac);if(fp===base)return;
+    if(SHARED_FACILITY_SAVE_FAILED_FP[id]===fp)return;
+    if(SHARED_FACILITY_SAVE_FAILED_FP[id]&&SHARED_FACILITY_SAVE_FAILED_FP[id]!==fp){
+      delete SHARED_FACILITY_SAVE_FAILED_FP[id];
+      delete SHARED_FACILITY_SAVE_ALERT_SIG[id];
+    }
+    sharedTouchEditing(fac);
+    if(SHARED_FACILITY_SAVE_TIMERS[id])clearTimeout(SHARED_FACILITY_SAVE_TIMERS[id]);
     SHARED_FACILITY_SAVE_TIMERS[id]=setTimeout(function(){delete SHARED_FACILITY_SAVE_TIMERS[id];sharedSaveOneNow(fac);},Math.max(850,typeof delay==="number"?delay:0));
   }
   function sharedSaveOneNow(fac){
@@ -5855,10 +5863,12 @@
     return window.fbSaveSharedFacility(id,after,expected,PG_ID,summary,before).then(function(res){
       if(res&&res.ok){
         fac._sharedRevision=Math.max(expected+1,parseInt(res.revision,10)||0);fac._sharedUpdatedBy=PG_ID;fac._sharedUpdatedAt=new Date().toISOString();SHARED_FACILITY_EDIT_TOUCH[id]=Date.now();SHARED_FACILITY_BASELINES[id]=currentFp;
+        delete SHARED_FACILITY_SAVE_FAILED_FP[id];delete SHARED_FACILITY_SAVE_ALERT_SIG[id];
         if(SHARED_FACILITY_DOCS[id]){SHARED_FACILITY_DOCS[id].facility=sharedClone(after);SHARED_FACILITY_DOCS[id].revision=fac._sharedRevision;SHARED_FACILITY_DOCS[id].updatedBy=PG_ID;}
         return true;
       }
       var code=res&&res.code?String(res.code):"error";
+      SHARED_FACILITY_SAVE_FAILED_FP[id]=currentFp;
       if(code==="shared-revision-conflict"){
         /* v200: non ricaricare sopra le modifiche locali. Recupera soltanto lo snapshot
            remoto più recente e lascia all'utente la scelta esplicita su quale versione tenere. */
@@ -5871,12 +5881,12 @@
             renderAll();
           }).catch(function(){renderAll();});
         }else{renderAll();}
-        alert("Questa struttura è stata modificata anche da un Collaboratore. Le tue modifiche non sono state cancellate: apri il riquadro Condivisione e scegli quale versione mantenere.");
+        sharedSaveAlertOnce(id,currentFp,code,"Questa struttura è stata modificata anche da un Collaboratore. Le tue modifiche non sono state cancellate: apri il riquadro Condivisione e scegli quale versione mantenere.");
       }else if(code==="edit-session-missing"){
-        alert("La modalità modifica non è più attiva. Disconnetti, reinserisci la Password del PG e riprova.");
+        sharedSaveAlertOnce(id,currentFp,code,"La modalità modifica non è più attiva. Disconnetti, reinserisci la Password del PG e riprova.");
       }else{
         fbStatusText="Struttura condivisa non salvata";updateFbIndicator();
-        alert("Non è stato possibile salvare la struttura condivisa. Riprova; se il problema continua, segnala il messaggio allo Staff.");
+        sharedSaveAlertOnce(id,currentFp,code,"Non è stato possibile salvare la struttura condivisa. La stessa modifica non verrà ritentata in continuazione: modifica di nuovo un dato per riprovare. Se il problema continua, segnala il messaggio allo Staff.");
       }
       return false;
     });
