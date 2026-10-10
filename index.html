@@ -1,3 +1,5 @@
+<!-- Aggiornamento 10/10/2026: classificazione automatica Role note, domanda per topic nuovi, Bonus successivi. -->
+<!-- Correzione v285: ripristino Bonus e variabili nei Post, avviso link non valido, aggiornamento della riga all’inserimento URL. 10/10/2026 -->
 <!-- elfo_adulto_v284 — Fix Mesi archiviati reintegrato sulla v283: i Mesi accreditati possono passare da aperti ad archiviati senza che Firebase ripristini chiuso:false; restano protetti Post e Bonus e resta vietata la riapertura finché l'accredito non viene revocato. Mantiene anche integralmente il fix v283 delle strutture condivise. 10/10/2026 -->
 <!-- elfo_adulto_v283 — Fix salvataggio strutture condivise: il normale update del contenuto non invia più editingBy/editingAt insieme a facility/revision (le Firestore Rules li consentono solo nell'update separato di presenza in modifica). Aggiunta protezione anti-loop: la stessa modifica fallita non viene ritentata e notificata all'infinito finché i dati non cambiano. Mantiene integralmente v282. 06/10/2026 -->
 <!-- elfo_adulto_v282 — Parametri Sociali: corretta l'eccezione Prestigio degli Adulti (0–3 Post −1; da 4 Post +1), mantenendo la regola generale −1/−0,5/0 per gli altri Parametri; il riquadro DA ACCREDITARE mostra ora anche variazioni positive. Mantiene integralmente v281. 28/09/2026 -->
@@ -2027,6 +2029,10 @@
   .post-setup-link:focus-visible,.post-spin-off-panel .spin-off-priority>summary:focus-visible{outline:3px solid #2366b1;outline-offset:3px;}
   @media(max-width:620px){.steps-nav{justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;}.step-btn{flex:0 0 auto;}}
   @media(max-width:540px){.post-preflight-grid{grid-template-columns:1fr;}}
+  .posts-table-scroll{width:100%;overflow-x:auto;overscroll-behavior-x:contain;}
+  .posts-table-scroll .posts{min-width:750px;}
+  .posts-table-scroll .cb-bonus-cell{min-width:260px;}
+  .posts-table-scroll .bonus-inline-link{max-width:220px;}
 </style>
 
 <style id="elfo-v41-harvest-style">
@@ -4759,6 +4765,7 @@
   }
 
   var SPECIAL_ROLE_REGISTRY = [];
+  var NORMAL_ROLE_TOPIC_KEYS = [];
   var meseCounter = 0;
   var postCounter = 0;
   var globalPostCounter = 0;
@@ -4783,6 +4790,26 @@
     var m=raw.match(/[?&](?:t|showtopic)=(\d+)/i);if(m)return "t:"+m[1];
     var p=raw.match(/\/t\/(\d+)/i);if(p)return "t:"+p[1];
     return "";
+  }
+  /* Classificazione delle discussioni normali, indipendente dai singoli post e dai mesi. */
+  function normalRoleRemember(key){
+    if(!key)return;
+    if(NORMAL_ROLE_TOPIC_KEYS.indexOf(key)<0)NORMAL_ROLE_TOPIC_KEYS.push(key);
+  }
+  function knownNormalRole(key, currentPost){
+    if(!key)return false;
+    if(NORMAL_ROLE_TOPIC_KEYS.indexOf(key)>=0)return true;
+    /* Retrocompatibilità: le discussioni dei post già salvati, non speciali,
+       sono note senza riproporre la domanda ai giocatori dopo l'aggiornamento. */
+    for(var mi=0;mi<MESI.length;mi++){
+      var ps=Array.isArray(MESI[mi].posts)?MESI[mi].posts:[];
+      for(var pi=0;pi<ps.length;pi++){
+        var old=ps[pi];
+        if(old===currentPost||!old||!isValidPostLink(old.link))continue;
+        if(specialRoleTopicKey(old.link)===key&&!isSpecialRolePost(old))return true;
+      }
+    }
+    return false;
   }
   function normalizeSpecialRoleRegistry(list){
     list=Array.isArray(list)?list:[];var out=[],seen={};
@@ -7855,7 +7882,7 @@
        le strutture condivise, che non fanno parte dello snapshot personale. */
     if(!HISTORY_RESTORING){stopSharedFacilitiesWatch();}
     ELFO_IDENTITY = { elfoNome:"Dobby", elfoAppellativo:"Padron", nomeChiamata:"", titoloPersonalizzato:false };
-    POSTS = []; MESI = []; SPECIAL_ROLE_REGISTRY = []; meseCounter = 0; postCounter = 0; globalPostCounter = 0; ARCHIVIO_DB = { periodiche:[], ultima:null };
+    POSTS = []; MESI = []; SPECIAL_ROLE_REGISTRY = []; NORMAL_ROLE_TOPIC_KEYS = []; meseCounter = 0; postCounter = 0; globalPostCounter = 0; ARCHIVIO_DB = { periodiche:[], ultima:null };
     STRUTTURE = { taccuino:false, dispensa:false, laboratorio:false, serra:false, riserva:false, importa:false };
     LABORATORI = []; labCounter = 0; postazCounter = 0;
     SERRE = []; serraCounter = 0; piantaCounter = 0;
@@ -7873,7 +7900,7 @@
       RICHIESTA_ELIMINAZIONE: DELETE_REQUESTED,
       _tutorialState: tutorialNormalizeState(TUTORIAL_STATE),
       ELFO_IDENTITY: ELFO_IDENTITY,
-      MESI: mesiForPersistence(), SPECIAL_ROLE_REGISTRY: normalizeSpecialRoleRegistry(SPECIAL_ROLE_REGISTRY), meseCounter: meseCounter, postCounter: postCounter, globalPostCounter: globalPostCounter, ARCHIVIO_DB: ARCHIVIO_DB,
+      MESI: mesiForPersistence(), SPECIAL_ROLE_REGISTRY: normalizeSpecialRoleRegistry(SPECIAL_ROLE_REGISTRY), NORMAL_ROLE_TOPIC_KEYS: NORMAL_ROLE_TOPIC_KEYS.slice(), meseCounter: meseCounter, postCounter: postCounter, globalPostCounter: globalPostCounter, ARCHIVIO_DB: ARCHIVIO_DB,
       PARAMETRI_SOCIALI: PARAMETRI_SOCIALI, VERIFICHE_PARAMETRI_SOCIALI: VERIFICHE_PARAMETRI_SOCIALI, SOCIAL_SYNC_META: SOCIAL_SYNC_META,
       STRUTTURE: STRUTTURE,
       DISPENSA: DISPENSA, ingredienteCounter: ingredienteCounter, movimentoCounter: movimentoCounter, _dispensaBatchDraft: cloneHistoryState(DISPENSA_BATCH),
@@ -7918,6 +7945,7 @@
     normalizeElfoIdentity();
     if(data.MESI){ MESI = data.MESI; }
     SPECIAL_ROLE_REGISTRY = normalizeSpecialRoleRegistry(data.SPECIAL_ROLE_REGISTRY);
+    NORMAL_ROLE_TOPIC_KEYS = Array.isArray(data.NORMAL_ROLE_TOPIC_KEYS) ? data.NORMAL_ROLE_TOPIC_KEYS.filter(function(x){return /^t:[0-9]+$/.test(String(x));}) : [];
     if(data.meseCounter){ meseCounter = data.meseCounter; }
     if(data.postCounter){ postCounter = data.postCounter; }
     if(data.globalPostCounter){ globalPostCounter = data.globalPostCounter; }
@@ -11248,7 +11276,7 @@
 
     var tbl = el("table", "posts");
     var showInlineGlobal = !mese.chiuso;
-    tbl.appendChild(el("tr", null, "<th>N.</th><th>Link al post</th>"+(showInlineGlobal?"<th>N. globale</th>":"")+"<th></th>"));
+    tbl.appendChild(el("tr", null, "<th>N.</th><th>Link al post</th>"+(showInlineGlobal?"<th>N. globale</th>":"")+"<th>Bonus e variabili</th><th></th>"));
     for(var i=0;i<mese.posts.length;i++){
       (function(post, idx){
         var tr = el("tr");
@@ -11285,6 +11313,7 @@
           refreshInlineGlobal();
         }
         function commitGeneralPostLink(candidate,delay){
+          var lastRenderedLinkValiditySource=String(post.link||"");
           if(String(candidate||"").trim()){ensurePersistentGeneralPostId(post);}
           post.link=candidate;
           lastAcceptedPostLink=candidate;
@@ -11295,6 +11324,52 @@
           
           scheduleSave(delay==null?0:delay);
           if(staffTokenIsUsed(post,mese)){syncStaffTokenReference(post,mese);}
+          /* Quando il link diventa valido (o cessa di esserlo), ricostruisci
+             le celle Bonus, le caselle Usi e i totali dipendenti dai Post. */
+          if(isValidPostLink(lastRenderedLinkValiditySource)!==isValidPostLink(candidate)){
+            setTimeout(function(){renderAll();},0);
+          }
+        }
+        /* Solo un topic mai incontrato chiede se la Role e' speciale.
+           Non salvare il post ne' assegnare numeri globali fino alla risposta. */
+        var roleQuestion=el("div","post-role-question");
+        roleQuestion.style.cssText="display:none;margin:9px 0;padding:11px;border:1px solid #a9803a;border-radius:8px;background:#fff5dd";
+        tdLink.appendChild(roleQuestion);
+        var pendingRoleLink="";
+        function hideRoleQuestion(){roleQuestion.style.display="none";roleQuestion.innerHTML="";pendingRoleLink="";}
+        function confirmNewRole(candidate,delay){
+          var key=specialRoleTopicKey(candidate);
+          if(!key||!isValidPostLink(candidate))return false;
+          if(specialRoleEntryByKey(key)||knownNormalRole(key,post))return false;
+          if(pendingRoleLink===candidate&&roleQuestion.style.display!=="none")return true;
+          pendingRoleLink=candidate;
+          roleQuestion.innerHTML="";roleQuestion.style.display="block";
+          roleQuestion.appendChild(el("strong",null,"Nuova Role: appartiene a una sezione speciale?"));
+          roleQuestion.appendChild(el("p","small-note","La domanda compare solo per una discussione mai registrata. I post successivi saranno riconosciuti automaticamente."));
+          var row=el("div","row");
+          var normal=el("button","action small","No, Role normale");normal.type="button";
+          normal.addEventListener(EV,function(){
+            if(blockIfMonthReadOnly(mese))return;
+            normalRoleRemember(key);hideRoleQuestion();commitGeneralPostLink(candidate,0);renderAll();
+          });
+          row.appendChild(normal);
+          var yes=el("button","action small","Sì, Role speciale");yes.type="button";
+          row.appendChild(yes);roleQuestion.appendChild(row);
+          var typeRow=el("div");typeRow.style.cssText="display:none;margin-top:8px";
+          typeRow.appendChild(el("label",null,"Sezione speciale"));
+          var sel=el("select");
+          Object.keys(SPECIAL_ROLE_TYPES).forEach(function(t){var opt=el("option",null,SPECIAL_ROLE_TYPES[t].label);opt.value=t;sel.appendChild(opt);});
+          typeRow.appendChild(sel);
+          var register=el("button","action small","Registra Role e inserisci il post");register.type="button";
+          register.addEventListener(EV,function(){
+            if(blockIfMonthReadOnly(mese))return;
+            var result=registerSpecialRole(candidate,sel.value);
+            if(!result.ok){alert(result.error);return;}
+            hideRoleQuestion();commitGeneralPostLink(candidate,0);renderAll();
+          });
+          typeRow.appendChild(register);roleQuestion.appendChild(typeRow);
+          yes.addEventListener(EV,function(){typeRow.style.display="block";yes.disabled=true;});
+          return true;
         }
         function verifyAndCommitGeneralPostLink(candidate,delay){
           if(staffTokenIsUsed(post,mese)&&!isValidPostLink(candidate)){
@@ -11304,7 +11379,9 @@
             iLink.value=lastAcceptedPostLink;alert("Il Post globale n° "+post.globalNo+" è ancora usato da una lavorazione attiva ("+refLabels.join("; ")+"). Il link non può essere cancellato o reso non valido finché quel riferimento è in uso.");refreshInlineGlobal();return;
           }
           var hit=findDuplicateGeneralPostLink(candidate,post);
-          if(hit){rejectDuplicatePostLink(candidate,hit);return;}
+          if(hit){rejectDuplicatePostLink(candidate,hit);hideRoleQuestion();return;}
+          if(confirmNewRole(candidate,delay))return;
+          hideRoleQuestion();
           commitGeneralPostLink(candidate,delay);
         }
         function scheduleForumSectionCommit(candidate,delay){
@@ -11337,6 +11414,9 @@
           verifyAndCommitGeneralPostLink(candidate,0);
         });
         tdLink.appendChild(iLink);
+        if(String(post.link||"").trim()&&!isValidPostLink(post.link)){
+          tdLink.appendChild(el("div","post-link-duplicate-note","⚠ Inserisci l’URL del post (https://…), non il testo del Bonus. Finché manca un link valido, il Post non entra nei conteggi."));
+        }
         if(isPostExcluded(post)){
           tr.classList.add("post-row-excluded");
           tdLink.appendChild(el("div","post-excluded-badge","⚠ Escluso dai conteggi"));
@@ -11388,6 +11468,13 @@
           tdGlobal.appendChild(specialRewardSpan);
           tr.appendChild(tdGlobal); refreshInlineGlobal();
         }
+        /* Bonus del Mese direttamente in I tuoi Post: stessa logica e stessi
+           oggetti condivisi con Camera Blindata, senza duplicazione dei dati. */
+        var bonusTd=makeEventBonusExclusionCell(post,mese,contentLocked);
+        if(!isValidPostLink(post.link)){
+          bonusTd.appendChild(el("div","small-note","Incolla prima il link del Post per attivare gli utilizzi e compilare il risultato del Bonus."));
+        }
+        tr.appendChild(bonusTd);
         var tdRm = el("td");
         var rmBtn = el("button", "action danger small", "Rimuovi");
         rmBtn.type="button";
@@ -11420,7 +11507,9 @@
         tbl.appendChild(tr);
       })(mese.posts[i], i);
     }
-    card.appendChild(tbl);
+    var postTableScroll=el("div","posts-table-scroll");
+    postTableScroll.appendChild(tbl);
+    card.appendChild(postTableScroll);
 
     var addBtn = el("button", "action small", "+ Aggiungi post");
     /* Non rendere il pulsante morto soltanto mentre Firebase sta verificando gli accrediti:
@@ -11448,11 +11537,11 @@
     });
     if(!mese.chiuso && !accreditato && !isImportedStudentMonth(mese)){
       var preflight=el("div","post-preflight");
-      preflight.appendChild(el("div","post-preflight-heading","Prima di premere «Aggiungi post»: ci sono casi particolari?"));
+      preflight.appendChild(el("div","post-preflight-heading","Incolla il link del post: l’Elfo riconosce le Role già note e chiede solo per quelle nuove. Bonus e variabili si aggiungono dopo, nella riga del post."));
       var preflightGrid=el("div","post-preflight-grid");
-      preflightGrid.appendChild(postSetupShortcut("spin",mese));
-      preflightGrid.appendChild(postSetupShortcut("bonus",mese));
-      preflight.appendChild(preflightGrid);
+
+
+
       card.appendChild(preflight);
     }
     var postActions=el("div","month-post-actions post-actions-primary");
