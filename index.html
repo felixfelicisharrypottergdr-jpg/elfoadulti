@@ -1,3 +1,4 @@
+<!-- elfo_adulto_v290 — 18/10/2026: corretta la verifica del Salva manuale. Il controllo ora confronta solo i campi realmente gestiti dall’Elfo e la baseline effettivamente confermata da Firebase, ignorando metadati/chiavi legacy rimaste nel documento per effetto dei salvataggi merge. Ripulito anche il flag sporco residuo prima dell’avviso di chiusura. Mantiene integralmente v289. -->
 <!-- elfo_adulto_v289 — 17/10/2026: pulizia definitiva di «I tuoi Post»: rimossa la vecchia scorciatoia SPIN-OFF/BONUS e il relativo codice/CSS non più usato; aggiornata la guida al flusso corrente (Role note riconosciute automaticamente, domanda solo per topic nuovi; Bonus/dadi/variabili solo in Camera Blindata). Mantiene integralmente v288. -->
 <!-- elfo_adulto_v288 — 17/10/2026: salvataggio manuale irrobustito (copia locale sincrona prima della scrittura cloud, verifica finale del dato personale, avviso prima di refresh/uscita se esistono modifiche o strutture condivise ancora non consolidate). Taccuino FantaWiz: il selettore Missioni mostra anche quelle già in corso/concluse come voci disabilitate con stato, così missioni importate come «I Compari» non sembrano mancanti. Mantiene integralmente v287. -->
 <!-- elfo_adulto_v287: I tuoi Post contiene solo link, progressivi e gestione Role; Bonus e variabili restano esclusivamente nella Camera Blindata. Mantiene riconoscimento delle discussioni note e persistenza precedente. 10/10/2026 -->
@@ -6998,11 +6999,14 @@
   }
 
   function verifyPersonalManualSave(expectedState){
+    /* v290: con merge:true il documento remoto può contenere metadati o campi
+       legacy non più presenti nello stato corrente. La verifica deve controllare
+       soltanto la baseline realmente confermata e i campi gestiti dall'Elfo. */
     if(!PG_ID||!window.fbLoadState){return Promise.resolve(true);}
-    return window.fbLoadState(PG_ID).then(function(remote){
+    return Promise.resolve(window.fbLoadState(PG_ID)).then(function(remote){
       if(!remote){return false;}
-      var expected=persistenceComparableState(expectedState||collectState());
-      var actual=persistenceComparableState(remote);
+      var expected=LAST_PERSISTED_STATE?cloneHistoryState(LAST_PERSISTED_STATE):persistenceComparableState(expectedState||collectState());
+      var actual=loadedPersistenceProjection(remote,expected);
       return stableComparableJson(expected)===stableComparableJson(actual);
     }).catch(function(e){
       console.error("Verifica salvataggio manuale fallita",e);
@@ -7074,6 +7078,10 @@
 
       if(ok){
         fbStatusText="Salvato";
+        try{
+          personalResetCloudBackoffIfSynced();
+          if(!personalHasUnpersistedNetChange()){DATA_DIRTY=false;personalPendingClear();}
+        }catch(e){console.error("Pulizia stato locale dopo verifica salvataggio fallita",e);}
         setManualSaveNote("✓ Salvataggio verificato. Ora puoi aggiornare o chiudere la pagina.");
       }else if(!sharedOk){
         var sharedCode=window.fbLastSharedSaveError&&window.fbLastSharedSaveError.code?
@@ -8423,7 +8431,11 @@
     window.__ELFO_UNSAVED_BEFOREUNLOAD_V288=true;
     window.addEventListener("beforeunload",function(ev){
       var personalDirty=false;
-      try{personalDirty=!!SAVE_IN_FLIGHT_PROMISE||!!DATA_DIRTY||personalHasUnpersistedNetChange();}catch(e){}
+      try{
+        var netDirty=personalHasUnpersistedNetChange();
+        if(!netDirty&&!SAVE_IN_FLIGHT_PROMISE){DATA_DIRTY=false;}
+        personalDirty=!!SAVE_IN_FLIGHT_PROMISE||netDirty;
+      }catch(e){personalDirty=!!SAVE_IN_FLIGHT_PROMISE||!!DATA_DIRTY;}
       var sharedDirty=hasUnsavedSharedFacilities();
       if(MANUAL_SAVE_ACTIVE||personalDirty||sharedDirty){
         ev.preventDefault();
